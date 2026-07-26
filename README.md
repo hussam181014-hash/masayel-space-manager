@@ -7,7 +7,9 @@
 ## ✨ المميزات
 
 - 🎯 **إنشاء أرفف ذكي**: رف عادي، طبلية، ثلاجة (نوع A أو B) — مع توليد أكواد القواطع تلقائيًا
-- 📱 **PWA + Barcode Scanner**: يشتغل من الموبايل، يمسح الباركود بكاميرا الجوال
+- 📱 **PWA قابل للتثبيت**: يتثبت على الشاشة الرئيسية زي أي تطبيق (أندرويد وآيفون)، ويشتغل أوفلاين بعد أول فتحة
+- 📷 **Barcode Scanner**: يمسح كود القاطع بكاميرا الجوال
+- 🖨️ **طباعة باركود (QR)**: قاطع واحد، أو رف كامل، أو مجموعة أرفف مع بعض دفعة واحدة — من خريطة الموقع
 - 📊 **تقارير شاملة**: خريطة الموقع (Treemap)، توزيع الموردين، معدل الدوران، توزيع التصنيفات
 - 🔐 **نظام صلاحيات**: مالك / مستخدم بصلاحيات محدودة
 - 🎨 **ثيم Aurora Daylight**: تصميم عصري مريح للعين
@@ -42,6 +44,7 @@ python3 -m http.server 8000
 - **Backend**: Supabase (PostgreSQL + Auth + RLS)
 - **Charts**: Chart.js
 - **QR Scanner**: html5-qrcode
+- **QR Label Printing**: qrcode.js
 - **Icons**: Tabler Icons
 - **Font**: IBM Plex Sans Arabic
 
@@ -51,6 +54,7 @@ python3 -m http.server 8000
 .
 ├── index.html              # التطبيق الرئيسي
 ├── preview.html            # Aurora Daylight Theme Preview
+├── icons/                  # أيقونات الـ PWA (192/512 + maskable + apple-touch-icon + favicon)
 ├── README.md
 └── LICENSE
 ```
