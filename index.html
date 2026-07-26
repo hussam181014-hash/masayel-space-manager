@@ -682,7 +682,7 @@
       <div class="step" id="step-3">
         <div class="field"><label>كود الرف (متولّد تلقائيًا)</label><input type="text" id="f-code" readonly></div>
         <div class="codes-summary">
-          <div class="stat"><b id="prev-count">0</b><span>إجمالي القواطع</span></div>
+          <div class="stat"><b id="prev-count">0</b><span>إجمالي وحدات التأجير</span></div>
           <div class="stat"><b id="premium-count">0</b><span>قواطع مميزة</span></div>
         </div>
         <p class="tier-hint">دوس على أي قاطع عشان تحدده كـ"مميز" (إيجار أعلى) — الجندولتين الطرفيتين (لو مفعّلتين) متحددة مميزة تلقائيًا وتقدر تغيّرها.</p>
@@ -748,7 +748,7 @@
       <div id="page-details" class="scan-page">
         <div class="topbar">
           <span class="back" id="details-back-btn"><i class="ti ti-arrow-right"></i></span>
-          <h2 style="flex:1;">تفاصيل القاطع</h2>
+          <h2 style="flex:1;">تفاصيل المستوى</h2>
           <button class="icon-btn" id="rescan-from-details" title="إعادة قراءة"><i class="ti ti-scan"></i></button>
         </div>
         <div class="card">
@@ -784,7 +784,7 @@
       </div>
 
       <div id="page-edit" class="scan-page">
-        <div class="topbar"><span class="back" data-goto="page-details"><i class="ti ti-arrow-right"></i></span><h2>تعديل بيانات القاطع</h2></div>
+        <div class="topbar"><span class="back" data-goto="page-details"><i class="ti ti-arrow-right"></i></span><h2>تعديل بيانات المستوى</h2></div>
         <div class="card">
           <div class="field"><label>الحالة</label>
             <select id="e-status">
@@ -1293,7 +1293,7 @@ function renderMapLevel(allData){
     </div>
     <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px;">
       <div class="kpi-mini"><b>${data.length}</b><span>عدد الأرفف</span></div>
-      <div class="kpi-mini"><b>${totalParts}</b><span>إجمالي القواطع</span></div>
+      <div class="kpi-mini"><b>${totalParts}</b><span>إجمالي وحدات التأجير</span></div>
       <div class="kpi-mini"><b>${occRate}%</b><span>نسبة الإشغال</span></div>
       <div class="kpi-mini"><b>${catList.length}</b><span>عدد التصنيفات الظاهرة</span></div>
     </div>
@@ -1317,7 +1317,7 @@ function renderMapLevel(allData){
   data.forEach(u => {
     const lbl = document.createElement('label');
     lbl.style.cssText = 'display:flex; align-items:center; gap:6px; font-size:12px; background:var(--panel-2); border:1px solid var(--border); border-radius:8px; padding:6px 8px; cursor:pointer;';
-    lbl.innerHTML = `<input type="checkbox" class="rack-select-chk" value="${u.rack_code}"><span style="direction:ltr;">${u.rack_code}</span><span style="color:var(--muted); margin-inline-start:auto;">${u.total_parts} قاطع</span>`;
+    lbl.innerHTML = `<input type="checkbox" class="rack-select-chk" value="${u.rack_code}"><span style="direction:ltr;">${u.rack_code}</span><span style="color:var(--muted); margin-inline-start:auto;">${u.total_parts} وحدة</span>`;
     selectList.appendChild(lbl);
   });
   function updateSelectedRacksCount(){
@@ -1371,7 +1371,7 @@ function renderRackRankedList(data){
           <span class="rr-code">${u.rack_code}</span>
           <div class="rr-bar"><div style="width:${u.occ_pct}%; background:${c.fill};"></div></div>
           <span class="rr-pct" style="color:${c.text};">${u.occ_pct}%</span>
-          <span class="rr-count">${u.total_parts} قاطع</span>
+          <span class="rr-count">${u.total_parts} وحدة</span>
         </div>`;
       }).join('')}
     </div>`;
@@ -1401,7 +1401,7 @@ function renderRackTreemap(data, catList){
     if(showText){
       div.innerHTML = `<div style="font-size:11px; font-weight:700; color:var(--text); direction:ltr;">${u.rack_code}</div>
         <div style="font-size:9.5px; color:var(--muted); margin-top:2px;">${u.dominant_category}</div>
-        <div style="font-size:9.5px; color:var(--muted);">إشغال ${u.occ_pct}% · ${u.total_parts} قاطع</div>`;
+        <div style="font-size:9.5px; color:var(--muted);">إشغال ${u.occ_pct}% · ${u.total_parts} وحدة</div>`;
     }
     div.title = `${u.rack_code} — ${u.dominant_category} — إشغال ${u.occ_pct}%`;
     div.addEventListener('click', () => showRackDetail(u.rack_code));
@@ -1417,7 +1417,7 @@ function renderRackTreemap(data, catList){
     el.innerHTML = `
       <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px;">
         <div class="kpi-mini"><b>${o.total_area_parts}</b><span>إجمالي القواطع (المساحة)</span></div>
-        <div class="kpi-mini"><b>${o.avg_sales_per_sqm !== null ? Number(o.avg_sales_per_sqm).toFixed(3) : '—'}</b><span>متوسط المبيعات/قاطع</span></div>
+        <div class="kpi-mini"><b>${o.avg_sales_per_sqm !== null ? Number(o.avg_sales_per_sqm).toFixed(3) : '—'}</b><span>متوسط المبيعات/وحدة</span></div>
         <div class="kpi-mini"><b>${Object.keys(byType).length}</b><span>عدد أنواع الوحدات المستخدمة</span></div>
       </div>
       <div class="card">
@@ -1432,7 +1432,7 @@ function renderRackTreemap(data, catList){
     if(error){ el.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+error.message+'</p>'; return; }
     if(!data || !data.length){ el.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش قواطع متأجرة لموردين لسه.</p>'; return; }
     el.innerHTML = `<div class="card" style="padding:0; overflow-x:auto;"><table class="rpt-table">
-      <thead><tr><th>كود</th><th>المورد</th><th>المساحة (قاطع)</th><th>نسبة من الإجمالي</th><th>صافي المشتريات</th><th>مبيعات/قاطع</th></tr></thead>
+      <thead><tr><th>كود</th><th>المورد</th><th>المساحة (وحدة)</th><th>نسبة من الإجمالي</th><th>صافي المشتريات</th><th>مبيعات/وحدة</th></tr></thead>
       <tbody>${data.map(s => `<tr>
         <td>${s.supplier_code ?? '—'}</td><td style="font-weight:600;">${s.supplier_name}</td>
         <td>${s.area_parts}</td><td>${scoreBar(s.share_pct)}</td>
@@ -1466,10 +1466,10 @@ function renderRackTreemap(data, catList){
       <div class="cat-report-row" data-idx="${i}">
         <div class="head">
           <div><b>${c.category_name}</b><div style="color:var(--muted); font-size:11.5px; margin-top:2px;">${(c.suppliers||[]).length} مورد</div></div>
-          <div style="text-align:left;"><div style="color:var(--accent); font-weight:700;">${c.total_area} قاطع</div><div style="font-size:11px; color:var(--muted);">${c.share_pct_of_total}% من إجمالي المساحة</div></div>
+          <div style="text-align:left;"><div style="color:var(--accent); font-weight:700;">${c.total_area} وحدة</div><div style="font-size:11px; color:var(--muted);">${c.share_pct_of_total}% من إجمالي المساحة</div></div>
         </div>
         <div class="cat-report-detail" id="cat-detail-${i}">
-          ${(c.suppliers||[]).map(s => `<div class="review-row"><span class="k">${s.supplier_name}</span><span class="v">${scoreBar(s.share_pct)} <span style="color:var(--muted); font-size:11px;">(${s.area} قاطع)</span></span></div>`).join('') || '<p style="color:var(--muted); font-size:12px;">لا يوجد.</p>'}
+          ${(c.suppliers||[]).map(s => `<div class="review-row"><span class="k">${s.supplier_name}</span><span class="v">${scoreBar(s.share_pct)} <span style="color:var(--muted); font-size:11px;">(${s.area} وحدة)</span></span></div>`).join('') || '<p style="color:var(--muted); font-size:12px;">لا يوجد.</p>'}
         </div>
       </div>`).join('');
     document.querySelectorAll('.cat-report-row').forEach(row => {
@@ -1484,7 +1484,7 @@ function renderRackTreemap(data, catList){
     if(error){ el.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+error.message+'</p>'; return; }
     if(!data || !data.length){ el.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش بيانات مبيعات متاحة لسه — هتظهر لما توفّر بيانات المبيعات.</p>'; return; }
     el.innerHTML = `<div class="card" style="padding:0; overflow-x:auto;"><table class="rpt-table">
-      <thead><tr><th>كود</th><th>المورد</th><th>المساحة</th><th>قيمة المبيعات</th><th>مبيعات/قاطع (قيمة)</th><th>كمية المبيعات</th><th>مبيعات/قاطع (كمية)</th></tr></thead>
+      <thead><tr><th>كود</th><th>المورد</th><th>المساحة</th><th>قيمة المبيعات</th><th>مبيعات/وحدة (قيمة)</th><th>كمية المبيعات</th><th>مبيعات/وحدة (كمية)</th></tr></thead>
       <tbody>${data.map(s => `<tr>
         <td>${s.supplier_code ?? '—'}</td><td style="font-weight:600;">${s.supplier_name}</td><td>${s.area_parts}</td>
         <td>${Number(s.total_sales_revenue||0).toFixed(2)}</td>
@@ -1525,7 +1525,7 @@ async function showRackDetail(rackCode){
       <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;">
         <div>
           <div style="font-weight:800; font-size:16px; direction:ltr; text-align:right;">${rackCode}</div>
-          <div style="color:var(--muted); font-size:12.5px; margin-top:4px;">${data.length} قاطع — ${vendorCount} مورد</div>
+          <div style="color:var(--muted); font-size:12.5px; margin-top:4px;">${data.length} وحدة — ${vendorCount} مورد</div>
         </div>
         <div style="text-align:left;">
           <div style="color:var(--accent); font-weight:700; font-size:18px;">${data.length ? Math.round(occCount/data.length*100) : 0}%</div>
@@ -2111,7 +2111,7 @@ async function saveRack(){
 
   if(error){ showToast('فشل الحفظ: ' + error.message, true); return; }
 
-  $('success-detail').textContent = `الرف "${$('f-code').value}" اتحفظ بـ ${generatedParts.length} قاطع.`;
+  $('success-detail').textContent = `الرف "${$('f-code').value}" اتحفظ بـ ${generatedParts.length} وحدة تأجير.`;
   renderRack3D(generatedParts, parts, selectedType, selectedSub, $('f-width').value, $('f-depth').value);
   goToStep(5);
 }
@@ -2423,7 +2423,7 @@ function startScanner(){
 
 $('manual-search-btn').addEventListener('click', () => {
   const code = $('manual-code').value.trim();
-  if(!code){ showToast('اكتب كود القاطع.', true); return; }
+  if(!code){ showToast('اكتب كود الرف أو القاطع أو المستوى.', true); return; }
   $('search-suggestions').style.display = 'none';
   lookupCode(code);
 });
@@ -2568,7 +2568,7 @@ async function renderGroupDetails(rackCode, filterPartNum, filterSide, doShowPag
   }
 
   $('group-title').textContent = title;
-  $('group-count').textContent = isFullRack ? `${data.length} قاطع` : `${items.length} مستوى`;
+  $('group-count').textContent = isFullRack ? `${data.length} وحدة` : `${items.length} مستوى`;
 
   const grid = $('group-grid');
   grid.innerHTML = '';
@@ -2708,7 +2708,7 @@ $('go-history').addEventListener('click', async () => {
   $('history-list').innerHTML = data.map(h => `
     <div class="hist-item">
       <span class="badge ${h.action}">${labelMap[h.action] || h.action}</span>
-      ${h.field_changed ? `${h.field_changed}: ${h.old_value || '—'} → ${h.new_value || '—'}` : 'إنشاء القاطع'}
+      ${h.field_changed ? `${h.field_changed}: ${h.old_value || '—'} → ${h.new_value || '—'}` : 'إنشاء الوحدة'}
       <div class="meta">${h.changed_by_name} · ${new Date(h.changed_at).toLocaleString('ar-EG')}</div>
     </div>
   `).join('');
@@ -2761,7 +2761,7 @@ async function buildLabelsHTML(items){
       const cards = await Promise.all(groupItems.map(cardHtmlFor));
       return `
         <div class="rack-group" style="${gi > 0 ? 'page-break-before: always;' : ''}">
-          <div class="group-title">${g} <span class="group-count">(${groupItems.length} قاطع)</span></div>
+          <div class="group-title">${g} <span class="group-count">(${groupItems.length} عنصر)</span></div>
           <div class="grid">${cards.join('')}</div>
         </div>`;
     }));
