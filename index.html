@@ -211,6 +211,23 @@
   .manual-row{display:flex; gap:8px; margin-top:12px;}
   .manual-row input{flex:1;}
   .status-dot{width:9px; height:9px; border-radius:50%; display:inline-block; margin-left:6px;}
+  .group-chip{
+    min-width:70px; padding:10px 12px; border-radius:10px; cursor:pointer; text-align:center;
+    background:var(--panel-2); border:1.5px solid var(--border); margin:3px; display:inline-flex; flex-direction:column; gap:3px;
+  }
+  .group-chip.premium{border-color:var(--amber); background:var(--amber-dim);}
+  .group-chip .gc-code{font-family:var(--font-mono); font-weight:700; font-size:11.5px; direction:ltr;}
+  .group-chip .gc-sub{font-size:10px; color:var(--muted);}
+  .group-row-label{
+    display:inline-flex; align-items:center; justify-content:center; min-width:56px; height:auto; padding:6px 8px;
+    font-size:11.5px; font-weight:700; color:var(--muted); background:var(--panel); border-radius:8px; margin:3px;
+  }
+  .recent-scan-item{
+    display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:var(--panel-2);
+    border:1px solid var(--border); border-radius:10px; margin-bottom:6px; cursor:pointer; font-size:12.5px;
+  }
+  .recent-scan-item .rs-code{font-family:var(--font-mono); font-weight:700; direction:ltr;}
+  .recent-scan-item .rs-type{font-size:10px; color:var(--muted); background:var(--panel); padding:2px 8px; border-radius:6px;}
   .status-dot.vacant{background:var(--muted);}
   .status-dot.occupied{background:var(--accent);}
   .status-dot.maintenance{background:var(--amber);}
@@ -666,6 +683,10 @@
       <div id="page-home" class="scan-page active">
         <div class="home-btn primary" id="go-scan"><span class="ic">📷</span> مسح الباركود</div>
         <div class="home-btn" id="go-manual"><span class="ic">🔍</span> بحث بالكود يدويًا</div>
+        <div id="recent-scans-wrap" style="margin-top:18px; display:none;">
+          <div style="font-size:12px; color:var(--muted); margin-bottom:8px; font-weight:600;">آخر عمليات المسح</div>
+          <div id="recent-scans-list"></div>
+        </div>
       </div>
 
       <div id="page-scan" class="scan-page">
@@ -679,7 +700,7 @@
       </div>
 
       <div id="page-details" class="scan-page">
-        <div class="topbar"><span class="back" data-goto="page-home">→</span><h2>تفاصيل القاطع</h2></div>
+        <div class="topbar"><span class="back" id="details-back-btn">→</span><h2>تفاصيل القاطع</h2></div>
         <div class="card">
           <div class="code-title" id="d-code"></div>
           <div class="code-tier" id="d-tier"></div>
@@ -698,6 +719,16 @@
           <button class="btn ghost" id="go-history">سجل التعديلات</button>
           <button class="btn ghost" id="print-single-code">🖨️ طباعة الباركود</button>
         </div>
+        <button class="btn ghost small" id="rescan-from-details" style="width:100%; margin-top:8px;">📷 إعادة قراءة</button>
+      </div>
+
+      <div id="page-group" class="scan-page">
+        <div class="topbar"><span class="back" data-goto="page-home">→</span><h2 id="group-title">—</h2></div>
+        <p style="color:var(--muted); font-size:12px; margin-bottom:10px;" id="group-count"></p>
+        <div class="card">
+          <div id="group-grid"></div>
+        </div>
+        <button class="btn ghost small" id="rescan-from-group" style="width:100%; margin-top:10px;">📷 إعادة قراءة</button>
       </div>
 
       <div id="page-edit" class="scan-page">
@@ -1227,7 +1258,7 @@ async function loadReportTab(tab){
       for(const code of codes){
         const { data: parts, error } = await sb.rpc('get_rack_parts_grid', { p_rack_code: code });
         if(error || !parts) continue;
-        parts.forEach(p => allItems.push({ code: p.part_code, subtitle: p.unit_type, tier: p.tier, group: code }));
+        allItems.push(...buildHierarchicalItems(parts, code));
       }
       btn.disabled = false; btn.textContent = originalText;
       if(!allItems.length){ showToast('مفيش أكواد للأرفف المحددة.', true); return; }
@@ -1388,7 +1419,7 @@ async function showRackDetail(rackCode){
     <div id="rack-part-editor"></div>`;
 
   $('print-rack-btn').addEventListener('click', () => {
-    const items = data.map(p => ({ code: p.part_code, subtitle: p.unit_type, tier: p.tier, group: rackCode }));
+    const items = buildHierarchicalItems(data, rackCode);
     printCodeLabels(items);
   });
 
@@ -2237,7 +2268,19 @@ function scanShowPage(id){
     qrScanner = null;
   }
 }
-document.querySelectorAll('#scan-app .back').forEach(b => b.addEventListener('click', () => scanShowPage(b.dataset.goto)));
+document.querySelectorAll('#scan-app .back').forEach(b => {
+  if(b.dataset.goto){ b.addEventListener('click', () => scanShowPage(b.dataset.goto)); }
+});
+
+let detailsBackTarget = 'page-home';
+let detailsBackContext = null; // { rackCode, part_num, side } لما نرجع لصفحة المجموعة
+$('details-back-btn').addEventListener('click', () => {
+  if(detailsBackTarget === 'page-group' && detailsBackContext){
+    renderGroupDetails(detailsBackContext.rackCode, detailsBackContext.part_num, detailsBackContext.side, false);
+  } else {
+    scanShowPage('page-home');
+  }
+});
 
 $('go-scan').addEventListener('click', () => { scanShowPage('page-scan'); startScanner(); });
 $('go-manual').addEventListener('click', () => { scanShowPage('page-scan'); $('manual-code').focus(); });
@@ -2248,7 +2291,7 @@ function startScanner(){
     qrScanner.start(
       { facingMode: 'environment' },
       { fps: 10, qrbox: 220 },
-      (decodedText) => { lookupPart(decodedText.trim()); },
+      (decodedText) => { lookupCode(decodedText.trim()); },
       () => {}
     ).catch(() => { showToast('تعذّر تشغيل الكاميرا — استخدم البحث اليدوي.', true); });
   }catch(e){ showToast('الكاميرا غير متاحة — استخدم البحث اليدوي.', true); }
@@ -2257,10 +2300,62 @@ function startScanner(){
 $('manual-search-btn').addEventListener('click', () => {
   const code = $('manual-code').value.trim();
   if(!code){ showToast('اكتب كود القاطع.', true); return; }
-  lookupPart(code);
+  lookupCode(code);
 });
 
-async function lookupPart(code){
+$('rescan-from-details').addEventListener('click', () => { scanShowPage('page-scan'); startScanner(); });
+$('rescan-from-group').addEventListener('click', () => { scanShowPage('page-scan'); startScanner(); });
+
+/* ============ آخر عمليات المسح ============ */
+const TYPE_LABELS_SCAN = { rack:'رف كامل', column:'قاطع كامل', level:'مستوى' };
+function getRecentScans(){
+  try{ return JSON.parse(localStorage.getItem('recent-scans') || '[]'); }catch(e){ return []; }
+}
+function pushRecentScan(code, type){
+  let list = getRecentScans().filter(r => r.code !== code);
+  list.unshift({ code, type, at: Date.now() });
+  list = list.slice(0, 8);
+  localStorage.setItem('recent-scans', JSON.stringify(list));
+  renderRecentScans();
+}
+function renderRecentScans(){
+  const list = getRecentScans();
+  const wrap = $('recent-scans-wrap');
+  if(!list.length){ wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  $('recent-scans-list').innerHTML = list.map(r => `
+    <div class="recent-scan-item" data-code="${r.code}">
+      <span class="rs-code">${r.code}</span>
+      <span class="rs-type">${TYPE_LABELS_SCAN[r.type] || r.type}</span>
+    </div>`).join('');
+  document.querySelectorAll('.recent-scan-item').forEach(el => {
+    el.addEventListener('click', () => lookupCode(el.dataset.code));
+  });
+}
+renderRecentScans();
+
+/* ============ محلل الكود: رف كامل / قاطع كامل / مستوى مفرد ============ */
+async function lookupCode(code){
+  const { data, error } = await sb.rpc('resolve_scan_code', { p_code: code });
+  if(error || !data || !data.length || data[0].code_type === 'not_found'){
+    showToast('الكود غير موجود: ' + code, true);
+    return;
+  }
+  const r = data[0];
+  pushRecentScan(code, r.code_type);
+
+  if(r.code_type === 'level'){
+    detailsBackTarget = 'page-home';
+    detailsBackContext = null;
+    await renderPartDetails(code);
+  } else if(r.code_type === 'column'){
+    await renderGroupDetails(r.rack_code, r.part_num, r.side, true);
+  } else if(r.code_type === 'rack'){
+    await renderGroupDetails(r.rack_code, null, null, true);
+  }
+}
+
+async function renderPartDetails(code){
   const { data, error } = await sb.rpc('get_part_details', { p_part_code: code });
   if(error || !data || !data.length){
     showToast('الكود غير موجود: ' + code, true);
@@ -2300,6 +2395,98 @@ async function lookupPart(code){
   $('go-edit').style.display = scanReadOnly ? 'none' : 'block';
 
   scanShowPage('page-details');
+}
+
+/* ============ عرض رف كامل أو قاطع كامل (شبكة قابلة للضغط) ============ */
+async function renderGroupDetails(rackCode, filterPartNum, filterSide, doShowPage){
+  const { data, error } = await sb.rpc('get_rack_parts_grid', { p_rack_code: rackCode });
+  if(error){ showToast('تعذّر تحميل بيانات الرف.', true); return; }
+
+  const isFullRack = (filterPartNum === null || filterPartNum === undefined);
+  let items = data;
+  let title = rackCode;
+  if(!isFullRack){
+    items = data.filter(p => p.part_num === filterPartNum && (p.side || null) === (filterSide || null) && !p.is_endcap);
+    title = `${rackCode} — قاطع ${filterPartNum}${filterSide ? (filterSide==='front' ? ' (أمامي)' : ' (خلفي)') : ''}`;
+  }
+
+  $('group-title').textContent = title;
+  $('group-count').textContent = isFullRack ? `${data.length} قاطع` : `${items.length} مستوى`;
+
+  const grid = $('group-grid');
+  grid.innerHTML = '';
+
+  const openLevel = (p) => {
+    detailsBackTarget = 'page-group';
+    detailsBackContext = { rackCode, part_num: filterPartNum, side: filterSide };
+    renderPartDetails(p.part_code);
+  };
+
+  if(isFullRack){
+    const isFreezerB = data.some(p => p.unit_type && (p.unit_type.startsWith('باب') || p.unit_type.startsWith('حوض')));
+    if(isFreezerB){
+      grid.style.cssText = 'display:flex; flex-wrap:wrap;';
+      data.forEach(p => grid.appendChild(makeGroupChip(p, openLevel)));
+    } else {
+      const frontParts = data.filter(p => p.side !== 'back' && !p.is_endcap);
+      const backParts = data.filter(p => p.side === 'back' && !p.is_endcap);
+      const hasBack = backParts.length > 0;
+      const frontEndcap = data.filter(p => p.is_endcap && p.unit_type === 'جندولة أمامية');
+      const backEndcap = data.filter(p => p.is_endcap && p.unit_type === 'جندولة خلفية');
+      const partNums = Array.from(new Set(frontParts.map(p => p.part_num))).sort((a,b) => a-b);
+
+      grid.style.cssText = 'display:flex; flex-direction:column; gap:6px; overflow-x:auto;';
+      if(frontEndcap.length) grid.appendChild(makeGroupRow('أمامية', frontEndcap, openLevel));
+      partNums.forEach(pn => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex; align-items:center;';
+        row.appendChild(makeRowLabel('قاطع ' + pn));
+        row.addEventListener('click', () => renderGroupDetails(rackCode, pn, 'front', true));
+        const preview = frontParts.filter(p => p.part_num === pn).sort((a,b)=>a.level-b.level);
+        preview.forEach(p => row.appendChild(makeGroupChip(p, () => renderGroupDetails(rackCode, pn, 'front', true), true)));
+        grid.appendChild(row);
+      });
+      if(hasBack){
+        partNums.forEach(pn => {
+          const row = document.createElement('div');
+          row.style.cssText = 'display:flex; align-items:center;';
+          row.appendChild(makeRowLabel('قاطع ' + pn));
+          const preview = backParts.filter(p => p.part_num === pn).sort((a,b)=>a.level-b.level);
+          preview.forEach(p => row.appendChild(makeGroupChip(p, () => renderGroupDetails(rackCode, pn, 'back', true), true)));
+          grid.appendChild(row);
+        });
+      }
+      if(backEndcap.length) grid.appendChild(makeGroupRow('خلفية', backEndcap, openLevel));
+    }
+  } else {
+    grid.style.cssText = 'display:flex; flex-wrap:wrap;';
+    items.sort((a,b) => a.level - b.level).forEach(p => grid.appendChild(makeGroupChip(p, openLevel)));
+  }
+
+  if(doShowPage !== false) scanShowPage('page-group');
+}
+
+function makeGroupChip(p, onClick, compact){
+  const chip = document.createElement('div');
+  const color = { occupied:'var(--success)', vacant:'var(--muted)', maintenance:'var(--amber)' }[p.status] || 'var(--muted)';
+  chip.className = 'group-chip' + (p.tier === 'premium' ? ' premium' : '');
+  chip.innerHTML = `<span class="gc-code">${compact ? 'L0'+p.level : p.part_code}</span><span class="gc-sub">${p.supplier_name || 'فارغ'}</span>
+    <span style="display:block; width:6px; height:6px; border-radius:50%; background:${color}; margin:2px auto 0;"></span>`;
+  chip.addEventListener('click', (e) => { e.stopPropagation(); onClick(p); });
+  return chip;
+}
+function makeRowLabel(text){
+  const lbl = document.createElement('div');
+  lbl.className = 'group-row-label';
+  lbl.textContent = text;
+  return lbl;
+}
+function makeGroupRow(label, parts, onClick){
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex; align-items:center;';
+  row.appendChild(makeRowLabel(label));
+  parts.sort((a,b)=>a.level-b.level).forEach(p => row.appendChild(makeGroupChip(p, onClick, true)));
+  return row;
 }
 
 async function loadEditCategoriesFor(catId, subId, selectedCategoryId, selectedSubcategoryId){
@@ -2350,7 +2537,7 @@ $('save-edit-btn').addEventListener('click', async () => {
     return;
   }
   showToast('تم حفظ التعديل.');
-  await lookupPart(currentPartCode);
+  await renderPartDetails(currentPartCode);
 });
 
 $('go-history').addEventListener('click', async () => {
@@ -2373,11 +2560,34 @@ $('go-history').addEventListener('click', async () => {
 $('scan-back-menu').addEventListener('click', () => goToSection('dashboard-home'));
 
 /* ============ طباعة باركود القواطع (QR — بيتقرا بكاميرا الموبايل زي مسح الباركود العادي) ============ */
+/* ============ بناء قائمة أكواد هرمية: رف كامل + كل قاطع كامل + كل مستوى ============ */
+function buildHierarchicalItems(parts, rackCode){
+  const items = [];
+  items.push({ code: rackCode, subtitle: '📦 باركود الرف الكامل', tier: null, group: rackCode, kind: 'rack' });
+
+  const seenColumns = new Set();
+  parts.forEach(p => {
+    const colCode = p.part_code.replace(/-L\d+$/, '');
+    if(!seenColumns.has(colCode)){
+      seenColumns.add(colCode);
+      const subtitle = p.is_endcap ? ('🏷️ ' + p.unit_type) : ('🏷️ قاطع' + (p.side ? (p.side==='front' ? ' — أمامي' : ' — خلفي') : ''));
+      items.push({ code: colCode, subtitle, tier: null, group: rackCode, kind: 'column' });
+    }
+  });
+
+  parts.forEach(p => {
+    items.push({ code: p.part_code, subtitle: p.unit_type, tier: p.tier, group: rackCode, kind: 'level' });
+  });
+
+  return items;
+}
+
 async function buildLabelsHTML(items){
   const cardHtmlFor = async (it) => {
     const qrUrl = await QRCode.toDataURL(it.code, { width: 260, margin: 1, color: { dark: '#0f172a', light: '#ffffff' } });
+    const kindClass = it.kind ? ' label-' + it.kind : '';
     return `
-      <div class="label">
+      <div class="label${kindClass}">
         <img src="${qrUrl}" alt="QR">
         <div class="label-code">${it.code}</div>
         ${it.subtitle ? `<div class="label-sub">${it.subtitle}${it.tier === 'premium' ? ' ★' : ''}</div>` : ''}
@@ -2417,6 +2627,8 @@ async function buildLabelsHTML(items){
   .group-count { font-weight: 400; color: #64748b; font-size: 11px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
   .label { border: 1px dashed #94a3b8; border-radius: 10px; padding: 10px; text-align: center; page-break-inside: avoid; break-inside: avoid; }
+  .label-rack { border: 2px solid #0d9488; background: #f0fdfa; }
+  .label-column { border: 1.5px solid #7c3aed; background: #faf5ff; }
   .label img { width: 100%; max-width: 140px; height: auto; }
   .label-code { font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 15px; direction: ltr; margin-top: 6px; color:#0f172a; }
   .label-sub { font-size: 11px; color:#475569; margin-top: 2px; }
@@ -2447,7 +2659,7 @@ async function printCodeLabels(items){
 }
 
 $('print-all-codes').addEventListener('click', () => {
-  const items = generatedParts.map(p => ({ code: p.part_code, subtitle: p.unit_type, tier: p.tier }));
+  const items = buildHierarchicalItems(generatedParts, $('f-code').value);
   printCodeLabels(items);
 });
 
