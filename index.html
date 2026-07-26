@@ -1683,19 +1683,7 @@ function renderRackPartsGrid(data, rackCode){
 
   const isFreezerB = data.some(p => p.unit_type && (p.unit_type.startsWith('باب') || p.unit_type.startsWith('حوض')));
   if(isFreezerB){
-    grid.style.cssText = 'display:flex; flex-wrap:wrap; gap:6px; direction:rtl;';
-    grid.innerHTML = '';
-    data.forEach(p => {
-      const chip = document.createElement('div');
-      const color = STATUS_COLOR_MAP[p.status] || 'var(--muted)';
-      chip.className = 'code-chip' + (p.tier === 'premium' ? ' premium' : '');
-      chip.style.minWidth = '84px'; chip.style.cursor = 'pointer'; chip.style.textAlign = 'center';
-      chip.innerHTML = `<span class="c" style="direction:ltr;">${p.part_code}</span><span class="t">${p.unit_type}</span>
-        <span style="display:block; width:7px; height:7px; border-radius:50%; background:${color}; margin:4px auto 0;"></span>`;
-      chip.title = (p.supplier_name || 'فارغ');
-      chip.addEventListener('click', () => openPartEditor(p, rackCode));
-      grid.appendChild(chip);
-    });
+    renderFreezerBColumns(data, rackCode, grid);
     return;
   }
 
@@ -1759,20 +1747,78 @@ function renderRackPartsGrid(data, rackCode){
   }
 }
 
+function renderFreezerBColumns(data, rackCode, grid){
+  grid.style.cssText = 'display:flex; flex-wrap:wrap; gap:8px; direction:rtl;';
+  grid.innerHTML = '';
+
+  const frontEndcap = data.filter(p => p.is_endcap && p.unit_type === 'جندولة أمامية').sort((a,b)=>a.level-b.level);
+  const backEndcap = data.filter(p => p.is_endcap && p.unit_type === 'جندولة خلفية').sort((a,b)=>a.level-b.level);
+  const columnParts = data.filter(p => !p.is_endcap);
+  const partNums = Array.from(new Set(columnParts.map(p => p.part_num))).sort((a,b) => a-b);
+
+  function aggDot(parts){
+    if(parts.some(p => p.status === 'occupied')) return 'var(--success)';
+    if(parts.some(p => p.status === 'maintenance')) return 'var(--amber)';
+    return 'var(--muted)';
+  }
+
+  function makeFreezerCard(label, parts, onClick, isEndcapCard){
+    const card = document.createElement('div');
+    const anyPremium = parts.some(p => p.tier === 'premium');
+    card.style.cssText = `min-width:${isEndcapCard?'96px':'104px'}; padding:10px 12px; border-radius:10px; cursor:pointer; text-align:center;
+      background:var(--panel-2); border:1.5px solid ${anyPremium ? 'var(--amber)' : 'var(--border)'};`;
+    card.innerHTML = `<div style="font-weight:700; font-size:13px; margin-bottom:8px;">${label}</div>`;
+    if(isEndcapCard){
+      const dot = aggDot(parts);
+      card.innerHTML += `<span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${dot};"></span>`;
+    } else {
+      const doors = parts.filter(p => p.unit_type.startsWith('باب'));
+      const basins = parts.filter(p => p.unit_type.startsWith('حوض'));
+      card.innerHTML += `
+        <div style="display:flex; gap:5px; justify-content:center;">
+          <span style="font-size:10.5px; padding:3px 8px; border-radius:6px; background:var(--panel); display:flex; align-items:center; gap:4px;">باب <span style="width:6px; height:6px; border-radius:50%; background:${aggDot(doors)};"></span></span>
+          <span style="font-size:10.5px; padding:3px 8px; border-radius:6px; background:var(--panel); display:flex; align-items:center; gap:4px;">حوض <span style="width:6px; height:6px; border-radius:50%; background:${aggDot(basins)};"></span></span>
+        </div>`;
+    }
+    card.addEventListener('click', () => onClick(parts, label, rackCode));
+    return card;
+  }
+
+  if(frontEndcap.length) grid.appendChild(makeFreezerCard('أمامية', frontEndcap, showLevelPanel, true));
+  partNums.forEach(pn => {
+    const parts = columnParts.filter(p => p.part_num === pn).sort((a,b) => {
+      const aDoor = a.unit_type.startsWith('باب'), bDoor = b.unit_type.startsWith('باب');
+      if(aDoor !== bDoor) return aDoor ? -1 : 1;
+      return a.part_code.localeCompare(b.part_code);
+    });
+    grid.appendChild(makeFreezerCard('قاطع ' + pn, parts, showLevelPanel, false));
+  });
+  if(backEndcap.length) grid.appendChild(makeFreezerCard('خلفية', backEndcap, showLevelPanel, true));
+}
+
 function showLevelPanel(parts, title, rackCode){
   const panel = $('rack-level-panel');
   panel.innerHTML = `
     <div style="margin-top:14px; padding-top:14px; border-top:1px dashed var(--border-strong);">
-      <div style="font-size:12.5px; color:var(--muted); margin-bottom:8px;">${title} — المستويات</div>
+      <div style="font-size:12.5px; color:var(--muted); margin-bottom:8px;">${title} — التفاصيل</div>
       <div style="display:flex; gap:6px; flex-wrap:wrap;" id="level-chips"></div>
     </div>`;
   const wrap = $('level-chips');
-  parts.sort((a,b) => a.level - b.level).forEach(p => {
+  const isFreezerParts = parts.some(p => p.unit_type && (p.unit_type.startsWith('باب') || p.unit_type.startsWith('حوض')));
+  const sorted = isFreezerParts
+    ? [...parts].sort((a,b) => {
+        const aDoor = a.unit_type.startsWith('باب'), bDoor = b.unit_type.startsWith('باب');
+        if(aDoor !== bDoor) return aDoor ? -1 : 1;
+        return a.part_code.localeCompare(b.part_code);
+      })
+    : [...parts].sort((a,b) => a.level - b.level);
+  sorted.forEach(p => {
     const color = STATUS_COLOR_MAP[p.status] || 'var(--muted)';
     const chip = document.createElement('div');
     chip.className = 'code-chip' + (p.tier === 'premium' ? ' premium' : '');
     chip.style.cursor = 'pointer'; chip.style.textAlign = 'center'; chip.style.minWidth = '90px';
-    chip.innerHTML = `<span class="c" style="direction:ltr;">L0${p.level}</span><span class="t">${p.supplier_name || 'فارغ'}</span>
+    const label = isFreezerParts ? p.unit_type : ('L0' + p.level);
+    chip.innerHTML = `<span class="c" style="direction:ltr;">${label}</span><span class="t">${p.supplier_name || 'فارغ'}</span>
       <span style="display:block; width:7px; height:7px; border-radius:50%; background:${color}; margin:4px auto 0;"></span>`;
     chip.addEventListener('click', () => openPartEditor(p, rackCode));
     wrap.appendChild(chip);
@@ -2701,8 +2747,42 @@ async function renderGroupDetails(rackCode, filterPartNum, filterSide, doShowPag
   if(isFullRack){
     const isFreezerB = data.some(p => p.unit_type && (p.unit_type.startsWith('باب') || p.unit_type.startsWith('حوض')));
     if(isFreezerB){
-      grid.style.cssText = 'display:flex; flex-wrap:wrap;';
-      data.forEach(p => grid.appendChild(makeGroupChip(p, openLevel)));
+      grid.style.cssText = 'display:flex; flex-wrap:wrap; gap:8px;';
+      const frontEndcap = data.filter(p => p.is_endcap && p.unit_type === 'جندولة أمامية').sort((a,b)=>a.level-b.level);
+      const backEndcap = data.filter(p => p.is_endcap && p.unit_type === 'جندولة خلفية').sort((a,b)=>a.level-b.level);
+      const columnParts = data.filter(p => !p.is_endcap);
+      const partNums = Array.from(new Set(columnParts.map(p => p.part_num))).sort((a,b) => a-b);
+      function aggDot(parts){
+        if(parts.some(p => p.status === 'occupied')) return 'var(--success)';
+        if(parts.some(p => p.status === 'maintenance')) return 'var(--amber)';
+        return 'var(--muted)';
+      }
+      function makeFreezerCard(label, parts, isEndcapCard, onClick){
+        const card = document.createElement('div');
+        const anyPremium = parts.some(p => p.tier === 'premium');
+        card.style.cssText = `min-width:${isEndcapCard?'96px':'104px'}; padding:10px 12px; border-radius:10px; cursor:pointer; text-align:center;
+          background:var(--panel-2); border:1.5px solid ${anyPremium ? 'var(--amber)' : 'var(--border)'};`;
+        card.innerHTML = `<div style="font-weight:700; font-size:13px; margin-bottom:8px;">${label}</div>`;
+        if(isEndcapCard){
+          card.innerHTML += `<span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${aggDot(parts)};"></span>`;
+        } else {
+          const doors = parts.filter(p => p.unit_type.startsWith('باب'));
+          const basins = parts.filter(p => p.unit_type.startsWith('حوض'));
+          card.innerHTML += `
+            <div style="display:flex; gap:5px; justify-content:center;">
+              <span style="font-size:10.5px; padding:3px 8px; border-radius:6px; background:var(--panel); display:flex; align-items:center; gap:4px;">باب <span style="width:6px; height:6px; border-radius:50%; background:${aggDot(doors)};"></span></span>
+              <span style="font-size:10.5px; padding:3px 8px; border-radius:6px; background:var(--panel); display:flex; align-items:center; gap:4px;">حوض <span style="width:6px; height:6px; border-radius:50%; background:${aggDot(basins)};"></span></span>
+            </div>`;
+        }
+        card.addEventListener('click', onClick);
+        return card;
+      }
+      if(frontEndcap.length) grid.appendChild(makeFreezerCard('أمامية', frontEndcap, true, () => { detailsBackTarget='page-group'; detailsBackContext={rackCode, part_num:null, side:null}; renderPartDetails(frontEndcap[0].part_code); }));
+      partNums.forEach(pn => {
+        const parts = columnParts.filter(p => p.part_num === pn);
+        grid.appendChild(makeFreezerCard('قاطع ' + pn, parts, false, () => renderGroupDetails(rackCode, pn, null, true)));
+      });
+      if(backEndcap.length) grid.appendChild(makeFreezerCard('خلفية', backEndcap, true, () => { detailsBackTarget='page-group'; detailsBackContext={rackCode, part_num:null, side:null}; renderPartDetails(backEndcap[0].part_code); }));
     } else {
       const frontParts = data.filter(p => p.side !== 'back' && !p.is_endcap);
       const backParts = data.filter(p => p.side === 'back' && !p.is_endcap);
@@ -2736,17 +2816,26 @@ async function renderGroupDetails(rackCode, filterPartNum, filterSide, doShowPag
     }
   } else {
     grid.style.cssText = 'display:flex; flex-wrap:wrap;';
-    items.sort((a,b) => a.level - b.level).forEach(p => grid.appendChild(makeGroupChip(p, openLevel)));
+    const isFreezerItems = items.some(p => p.unit_type && (p.unit_type.startsWith('باب') || p.unit_type.startsWith('حوض')));
+    const sortedItems = isFreezerItems
+      ? [...items].sort((a,b) => {
+          const aDoor = a.unit_type.startsWith('باب'), bDoor = b.unit_type.startsWith('باب');
+          if(aDoor !== bDoor) return aDoor ? -1 : 1;
+          return a.part_code.localeCompare(b.part_code);
+        })
+      : [...items].sort((a,b) => a.level - b.level);
+    sortedItems.forEach(p => grid.appendChild(makeGroupChip(p, openLevel, false, isFreezerItems)));
   }
 
   if(doShowPage !== false) scanShowPage('page-group');
 }
 
-function makeGroupChip(p, onClick, compact){
+function makeGroupChip(p, onClick, compact, isFreezer){
   const chip = document.createElement('div');
   const color = { occupied:'var(--success)', vacant:'var(--muted)', maintenance:'var(--amber)' }[p.status] || 'var(--muted)';
   chip.className = 'group-chip' + (p.tier === 'premium' ? ' premium' : '');
-  chip.innerHTML = `<span class="gc-code">${compact ? 'L0'+p.level : p.part_code}</span><span class="gc-sub">${p.supplier_name || 'فارغ'}</span>
+  const label = compact ? (isFreezer ? p.unit_type : 'L0'+p.level) : p.part_code;
+  chip.innerHTML = `<span class="gc-code">${label}</span><span class="gc-sub">${p.supplier_name || 'فارغ'}</span>
     <span style="display:block; width:6px; height:6px; border-radius:50%; background:${color}; margin:2px auto 0;"></span>`;
   chip.addEventListener('click', (e) => { e.stopPropagation(); onClick(p); });
   return chip;
