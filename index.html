@@ -90,7 +90,18 @@
   .err{color:var(--danger); font-size:13px; margin-top:10px; display:none;}
 
   #app{display:none;}
-  .topbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:22px;}
+  .topbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:22px; gap:12px;}
+  #scan-app .back{
+    width:40px; height:40px; border-radius:12px; background:var(--panel-2); border:1px solid var(--border);
+    display:flex; align-items:center; justify-content:center; font-size:19px; cursor:pointer; flex-shrink:0;
+  }
+  #scan-app .back:hover{background:var(--accent-dim); color:var(--accent-hover);}
+  #scan-app .icon-btn{
+    width:40px; height:40px; border-radius:12px; background:var(--accent-dim); border:1px solid var(--accent);
+    display:flex; align-items:center; justify-content:center; font-size:18px; cursor:pointer; flex-shrink:0;
+    color:var(--accent-hover);
+  }
+  #scan-app .icon-btn:hover{background:var(--accent); color:var(--btn-text, #fff);}
   .topbar h2{font-size:18px; font-weight:700;}
   .topbar .who{font-size:12px; color:var(--muted);}
 
@@ -208,7 +219,21 @@
   .who{font-size:11.5px; color:var(--muted); text-align:center; margin-bottom:14px;}
   .who a{color:var(--muted); text-decoration:underline; cursor:pointer;}
   #qr-reader{border-radius:14px; overflow:hidden; border:1px solid var(--border);}
-  .manual-row{display:flex; gap:8px; margin-top:12px;}
+  .manual-row{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;}
+  #search-suggestions{
+    position:absolute; top:100%; right:0; left:0; margin-top:6px; background:var(--panel);
+    border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow); z-index:20;
+    max-height:260px; overflow-y:auto; padding:6px;
+  }
+  .sugg-item{
+    display:flex; align-items:center; justify-content:space-between; padding:9px 12px; border-radius:8px;
+    cursor:pointer; font-size:13px;
+  }
+  .sugg-item:hover{background:var(--panel-2);}
+  .sugg-item .sg-code{font-family:var(--font-mono); font-weight:700; direction:ltr;}
+  .sugg-item .sg-badge{font-size:10px; padding:2px 8px; border-radius:6px; color:var(--muted); background:var(--panel-2);}
+  .sugg-item .sg-badge.rack{color:var(--accent); background:var(--accent-dim);}
+  .sugg-item .sg-badge.column{color:var(--accent-2); background:var(--accent-2-dim);}
   .manual-row input{flex:1;}
   .status-dot{width:9px; height:9px; border-radius:50%; display:inline-block; margin-left:6px;}
   .group-chip{
@@ -249,7 +274,13 @@
   .hist-item .meta{color:var(--muted); font-size:11.5px; margin-top:4px;}
   .scan-page{display:none;}
   .scan-page.active{display:block;}
-  .menu-back{color:var(--muted); font-size:13px; cursor:pointer; text-decoration:underline; display:inline-block; margin-bottom:14px;}
+  .menu-back{
+    display:inline-flex; align-items:center; gap:8px; color:var(--text); font-size:13.5px; font-weight:600;
+    cursor:pointer; text-decoration:none; margin-bottom:18px; padding:9px 16px; border-radius:10px;
+    background:var(--panel-2); border:1px solid var(--border); transition:background .15s;
+  }
+  .menu-back:hover{background:var(--accent-dim); color:var(--accent-hover);}
+  .menu-back i{font-size:16px;}
   .user-row{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:10px;}
   .user-row .u-email{font-weight:700; font-size:14px; margin-bottom:2px;}
   .user-row .u-role{font-size:11.5px; color:var(--muted); margin-bottom:10px;}
@@ -419,7 +450,7 @@
   <!-- ============ إدارة صلاحيات المستخدمين ============ -->
   <div id="users-app" class="content-section" style="display:none;">
     <div class="wrap" style="max-width:640px; margin:40px auto;">
-      <a class="menu-back" id="users-back-menu">→ القائمة الرئيسية</a>
+      <a class="menu-back" id="users-back-menu"><i class="ti ti-arrow-right"></i> القائمة الرئيسية</a>
       <h2 style="margin-bottom:14px;">إدارة صلاحيات المستخدمين</h2>
       <p class="hint" style="margin-bottom:16px;">حدد لكل مستخدم إيه المسموح له يشوفه ويعمله. المالك (إنت) دايمًا كل الصلاحيات معاه تلقائيًا.</p>
       <div id="users-list"><p style="color:var(--muted); font-size:13px;">جاري التحميل...</p></div>
@@ -428,7 +459,7 @@
 
   <div id="categories-app" class="content-section" style="display:none;">
     <div class="wrap" style="max-width:640px; margin:40px auto;">
-      <a class="menu-back" id="categories-back-menu">→ القائمة الرئيسية</a>
+      <a class="menu-back" id="categories-back-menu"><i class="ti ti-arrow-right"></i> القائمة الرئيسية</a>
       <h2 style="margin-bottom:6px;">إدارة التصنيفات</h2>
       <p class="hint" style="margin-bottom:16px;">أضف تصنيفات رئيسية وفرعية جاهزة تستخدمها لاحقًا في إنشاء الأرفف وتصنيف القواطع.</p>
 
@@ -448,7 +479,7 @@
   <!-- ============ تقارير المساحات ============ -->
   <div id="reports-app" class="content-section" style="display:none;">
     <div class="wrap" style="max-width:900px; margin:30px auto;">
-      <a class="menu-back" id="reports-back-menu">→ القائمة الرئيسية</a>
+      <a class="menu-back" id="reports-back-menu"><i class="ti ti-arrow-right"></i> القائمة الرئيسية</a>
       <h2 style="margin-bottom:14px;">تقارير المساحات</h2>
 
       <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
@@ -677,7 +708,7 @@
   <!-- ============ تطبيق مسح الباركود ============ -->
   <div id="scan-app" class="content-section" style="display:none;">
     <div class="phone">
-      <a class="menu-back" id="scan-back-menu">→ القائمة الرئيسية</a>
+      <a class="menu-back" id="scan-back-menu"><i class="ti ti-arrow-right"></i> القائمة الرئيسية</a>
       <div class="who">مسجّل: <b id="scan-who-email"></b> <span id="scan-who-role" style="color:var(--amber);"></span></div>
 
       <div id="page-home" class="scan-page active">
@@ -690,17 +721,22 @@
       </div>
 
       <div id="page-scan" class="scan-page">
-        <div class="topbar"><span class="back" data-goto="page-home">→</span><h2>مسح الباركود</h2></div>
+        <div class="topbar"><span class="back" data-goto="page-home"><i class="ti ti-arrow-right"></i></span><h2>مسح الباركود</h2></div>
         <div id="qr-reader" style="width:100%;"></div>
         <p style="color:var(--muted); font-size:12.5px; text-align:center; margin-top:10px;">وجّه الكاميرا على الباركود، أو اكتب الكود يدويًا تحت</p>
-        <div class="manual-row">
-          <input type="text" id="manual-code" placeholder="مثال: 20-G001-A01-L01" style="direction:ltr;">
+        <div class="manual-row" style="position:relative;">
+          <input type="text" id="manual-code" placeholder="مثال: 20-G001 أو 20-G001-A01" style="direction:ltr;" autocomplete="off">
           <button class="btn small" id="manual-search-btn">بحث</button>
+          <div id="search-suggestions" style="display:none;"></div>
         </div>
       </div>
 
       <div id="page-details" class="scan-page">
-        <div class="topbar"><span class="back" id="details-back-btn">→</span><h2>تفاصيل القاطع</h2></div>
+        <div class="topbar">
+          <span class="back" id="details-back-btn"><i class="ti ti-arrow-right"></i></span>
+          <h2 style="flex:1;">تفاصيل القاطع</h2>
+          <button class="icon-btn" id="rescan-from-details" title="إعادة قراءة"><i class="ti ti-scan"></i></button>
+        </div>
         <div class="card">
           <div class="code-title" id="d-code"></div>
           <div class="code-tier" id="d-tier"></div>
@@ -719,20 +755,22 @@
           <button class="btn ghost" id="go-history">سجل التعديلات</button>
           <button class="btn ghost" id="print-single-code">🖨️ طباعة الباركود</button>
         </div>
-        <button class="btn ghost small" id="rescan-from-details" style="width:100%; margin-top:8px;">📷 إعادة قراءة</button>
       </div>
 
       <div id="page-group" class="scan-page">
-        <div class="topbar"><span class="back" data-goto="page-home">→</span><h2 id="group-title">—</h2></div>
+        <div class="topbar">
+          <span class="back" data-goto="page-home"><i class="ti ti-arrow-right"></i></span>
+          <h2 id="group-title" style="flex:1;">—</h2>
+          <button class="icon-btn" id="rescan-from-group" title="إعادة قراءة"><i class="ti ti-scan"></i></button>
+        </div>
         <p style="color:var(--muted); font-size:12px; margin-bottom:10px;" id="group-count"></p>
         <div class="card">
           <div id="group-grid"></div>
         </div>
-        <button class="btn ghost small" id="rescan-from-group" style="width:100%; margin-top:10px;">📷 إعادة قراءة</button>
       </div>
 
       <div id="page-edit" class="scan-page">
-        <div class="topbar"><span class="back" data-goto="page-details">→</span><h2>تعديل بيانات القاطع</h2></div>
+        <div class="topbar"><span class="back" data-goto="page-details"><i class="ti ti-arrow-right"></i></span><h2>تعديل بيانات القاطع</h2></div>
         <div class="card">
           <div class="field"><label>الحالة</label>
             <select id="e-status">
@@ -751,7 +789,7 @@
       </div>
 
       <div id="page-history" class="scan-page">
-        <div class="topbar"><span class="back" data-goto="page-details">→</span><h2>سجل التعديلات</h2></div>
+        <div class="topbar"><span class="back" data-goto="page-details"><i class="ti ti-arrow-right"></i></span><h2>سجل التعديلات</h2></div>
         <div class="card" id="history-list">
           <p style="color:var(--muted); font-size:13px;">جاري التحميل...</p>
         </div>
@@ -1396,7 +1434,7 @@ async function showRackDetail(rackCode){
   const vendorCount = new Set(data.filter(p => p.supplier_id).map(p => p.supplier_id)).size;
 
   el.innerHTML = `
-    <a class="menu-back" id="rack-back-map">→ رجوع لخريطة الموقع</a>
+    <a class="menu-back" id="rack-back-map"><i class="ti ti-arrow-right"></i> رجوع لخريطة الموقع</a>
     <div class="card" style="margin-bottom:14px;">
       <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;">
         <div>
@@ -2300,7 +2338,40 @@ function startScanner(){
 $('manual-search-btn').addEventListener('click', () => {
   const code = $('manual-code').value.trim();
   if(!code){ showToast('اكتب كود القاطع.', true); return; }
+  $('search-suggestions').style.display = 'none';
   lookupCode(code);
+});
+
+/* ============ بحث ديناميكي (اقتراحات فورية أثناء الكتابة) ============ */
+const SEARCH_TYPE_LABEL = { rack: 'رف', column: 'قاطع' };
+let searchDebounce = null;
+$('manual-code').addEventListener('input', (e) => {
+  const q = e.target.value.trim();
+  clearTimeout(searchDebounce);
+  if(q.length < 2){ $('search-suggestions').style.display = 'none'; return; }
+  searchDebounce = setTimeout(async () => {
+    const { data, error } = await sb.rpc('search_codes', { p_query: q });
+    if(error || !data || !data.length){ $('search-suggestions').style.display = 'none'; return; }
+    $('search-suggestions').innerHTML = data.map(r => `
+      <div class="sugg-item" data-code="${r.code}">
+        <span class="sg-code">${r.code}</span>
+        <span style="display:flex; align-items:center; gap:6px;">
+          <span style="color:var(--muted); font-size:11px;">${r.subtitle || ''}</span>
+          <span class="sg-badge ${r.code_type}">${SEARCH_TYPE_LABEL[r.code_type] || r.code_type}</span>
+        </span>
+      </div>`).join('');
+    $('search-suggestions').style.display = 'block';
+    document.querySelectorAll('.sugg-item').forEach(el => {
+      el.addEventListener('click', () => {
+        $('manual-code').value = el.dataset.code;
+        $('search-suggestions').style.display = 'none';
+        lookupCode(el.dataset.code);
+      });
+    });
+  }, 250);
+});
+document.addEventListener('click', (e) => {
+  if(!e.target.closest('.manual-row')) $('search-suggestions').style.display = 'none';
 });
 
 $('rescan-from-details').addEventListener('click', () => { scanShowPage('page-scan'); startScanner(); });
