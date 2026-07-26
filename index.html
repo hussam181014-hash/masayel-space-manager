@@ -1248,14 +1248,17 @@ let mapSelectedType = null;
 let mapViewMode = 'list';
 
 if(tab === 'map'){
-  const { data, error } = await sb.rpc('report_floor_map');
+  const [{ data, error }, endcapRes] = await Promise.all([
+    sb.rpc('report_floor_map'),
+    sb.rpc('report_endcaps_map')
+  ]);
   if(error){ el.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+error.message+'</p>'; return; }
   if(!data || !data.length){ el.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش أرفف متسجّلة لسه.</p>'; return; }
-  renderMapLevel(data);
+  renderMapLevel(data, endcapRes.data || []);
   return;
 }
 
-function renderMapLevel(allData){
+function renderMapLevel(allData, endcapData){
   const el = $('report-content');
   if(mapSelectedType === null){
     const types = ['shelf','freezer','pallet'];
@@ -1271,22 +1274,30 @@ function renderMapLevel(allData){
           <p>${racks.length} — متوسط إشغال ${avgOcc}%</p>
         </div>`;
     }).join('');
-    el.innerHTML = `<p style="color:var(--muted); font-size:12.5px; margin-bottom:14px;">اختار نوع عشان تشوف الأرفف بتاعته</p><div class="dash-grid">${cardsHtml}</div>`;
+    const gondolaHtml = endcapData.length ? `
+        <div class="dash-card map-type-card" data-type="gondola" style="cursor:pointer;">
+          <div class="dc-ic"><i class="ti ti-columns"></i></div>
+          <h3>جندولات</h3>
+          <p>${endcapData.length} رف — متوسط إشغال ${Math.round(endcapData.reduce((s,u) => s + Number(u.occ_pct), 0) / endcapData.length)}%</p>
+        </div>` : '';
+    el.innerHTML = `<p style="color:var(--muted); font-size:12.5px; margin-bottom:14px;">اختار نوع عشان تشوف الأرفف بتاعته</p><div class="dash-grid">${cardsHtml}${gondolaHtml}</div>`;
     document.querySelectorAll('.map-type-card').forEach(c => {
-      c.addEventListener('click', () => { mapSelectedType = c.dataset.type; renderMapLevel(allData); });
+      c.addEventListener('click', () => { mapSelectedType = c.dataset.type; renderMapLevel(allData, endcapData); });
     });
     return;
   }
 
-  const data = allData.filter(u => u.rack_type === mapSelectedType);
+  const isGondola = mapSelectedType === 'gondola';
+  const data = isGondola ? endcapData : allData.filter(u => u.rack_type === mapSelectedType);
   const totalParts = data.reduce((s,u) => s + Math.max(1,u.total_parts), 0);
   const totalOccupied = data.reduce((s,u) => s + u.occupied_parts, 0);
   const occRate = totalParts > 0 ? Math.round(totalOccupied/totalParts*100) : 0;
   const catList = Array.from(new Set(data.map(u => u.dominant_category)));
+  const typeLabel = isGondola ? 'جندولات' : RACK_TYPE_LABELS[mapSelectedType];
 
   el.innerHTML = `
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
-      <a class="menu-back" id="map-back-types"><i class="ti ti-arrow-right"></i> ${RACK_TYPE_LABELS[mapSelectedType]} — ${data.length}</a>
+      <a class="menu-back" id="map-back-types"><i class="ti ti-arrow-right"></i> ${typeLabel} — ${data.length}</a>
       <div class="view-toggle">
         <div class="vt-opt ${mapViewMode==='list'?'sel':''}" data-mode="list">قائمة</div>
         <div class="vt-opt ${mapViewMode==='treemap'?'sel':''}" data-mode="treemap">خريطة</div>
@@ -1309,9 +1320,9 @@ function renderMapLevel(allData){
       <div id="rack-select-list" style="max-height:220px; overflow-y:auto; display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:6px;"></div>
     </div>`;
 
-  $('map-back-types').addEventListener('click', () => { mapSelectedType = null; renderMapLevel(allData); });
+  $('map-back-types').addEventListener('click', () => { mapSelectedType = null; renderMapLevel(allData, endcapData); });
   document.querySelectorAll('.vt-opt').forEach(o => {
-    o.addEventListener('click', () => { mapViewMode = o.dataset.mode; renderMapLevel(allData); });
+    o.addEventListener('click', () => { mapViewMode = o.dataset.mode; renderMapLevel(allData, endcapData); });
   });
 
   const selectList = $('rack-select-list');
@@ -1521,7 +1532,7 @@ function renderRackTreemap(data, catList){
     $('supplier-search-input').addEventListener('input', (e) => {
       const q = e.target.value.trim();
       clearTimeout(supDebounce);
-      if(q.length < 2){ $('supplier-search-suggestions').style.display = 'none'; return; }
+      if(q.length < 1){ $('supplier-search-suggestions').style.display = 'none'; return; }
       supDebounce = setTimeout(async () => {
         const { data, error } = await sb.rpc('search_suppliers', { p_query: q });
         if(error || !data || !data.length){ $('supplier-search-suggestions').style.display = 'none'; return; }
