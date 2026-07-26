@@ -1,0 +1,2286 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0d9488">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="استخبارات الموردين">
+<link rel="manifest" id="pwa-manifest">
+<title>استخبارات الموردين — إدارة المساحات</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  :root{
+    --font-ui:'IBM Plex Sans Arabic',sans-serif; --font-mono:'IBM Plex Mono',monospace;
+    --bg:#f8fafc; --bg-2:#f1f5f9; --panel:#ffffff; --panel-2:#f8fafc;
+    --border:rgba(15,23,42,.06); --border-strong:rgba(15,23,42,.12);
+    --text:#0f172a; --muted:#64748b;
+    --accent:#0d9488; --accent-hover:#0f766e; --accent-dim:rgba(13,148,136,.10); --accent-glow:rgba(13,148,136,.30);
+    --accent-2:#7c3aed; --accent-2-dim:rgba(124,58,237,.10);
+    --amber:#d97706; --amber-dim:rgba(217,119,6,.10);
+    --danger:#e11d48; --danger-dim:rgba(225,29,72,.10);
+    --success:#0d9488; --info:#0284c7;
+    --radius:16px; --radius-card:24px; --radius-input:16px;
+    --shadow:0 4px 20px rgba(15,23,42,.06);
+    --shadow-glow:0 4px 20px rgba(13,148,136,.20);
+    --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px; --sp-8:32px; --sp-10:40px; --sp-12:48px; --sp-16:64px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  *:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+  body{
+    background:
+      radial-gradient(ellipse 1200px 700px at 85% -10%, rgba(13,148,136,.08), transparent 60%),
+      radial-gradient(ellipse 900px 600px at 0% 100%, rgba(124,58,237,.06), transparent 60%),
+      var(--bg);
+    background-attachment: fixed;
+    color:var(--text); font-family:var(--font-ui); font-size:16px;
+    min-height:100vh; position:relative;
+  }
+  .wrap{width:100%; max-width:900px; margin:0 auto; padding:32px 16px; position:relative; z-index:1;}
+  .brand{display:flex; align-items:center; gap:10px; margin-bottom:24px;}
+  .brand .logo-mark{flex-shrink:0;}
+  .brand .brand-text{display:flex; flex-direction:column; line-height:1.35;}
+  .brand h1{font-size:14px; font-weight:600; color:var(--text); letter-spacing:.2px;}
+  .brand .brand-sub{font-size:10.5px; color:var(--muted); font-family:var(--font-mono); letter-spacing:.5px;}
+
+  .card{
+    background:var(--panel-2); border:1px solid var(--border); border-radius:var(--radius-card);
+    padding:var(--sp-6); margin-bottom:var(--sp-4); box-shadow:var(--shadow);
+  }
+
+  #auth-screen .card{max-width:420px; margin:80px auto;}
+  #auth-screen h2{font-size:20px; margin-bottom:6px;}
+  #auth-screen p.sub{color:var(--muted); font-size:13px; margin-bottom:20px;}
+  .field{margin-bottom:var(--sp-4);}
+  .field label{display:block; font-size:13px; color:var(--muted); margin-bottom:6px; font-weight:500;}
+  input[type=email], input[type=password], input[type=text], input[type=number], textarea, select{
+    width:100%; background:var(--panel); border:1px solid transparent; color:var(--text);
+    border-radius:var(--radius-input); padding:14px 16px; font-family:var(--font-ui); font-size:14.5px; outline:none;
+    transition:border-color .2s ease-out, background .2s ease-out;
+  }
+  input:focus, textarea:focus, select:focus{border-color:var(--accent); background:var(--panel-2);}
+  input[readonly]{color:var(--amber); font-weight:700; direction:ltr; text-align:left; font-family:var(--font-mono);}
+  .btn{
+    background:var(--accent); color:#fff; font-weight:600; border:none; border-radius:var(--radius);
+    padding:0 24px; height:52px; font-family:var(--font-ui); font-size:15px; cursor:pointer; width:100%;
+    transition:background .2s ease-out, transform .12s ease-out, box-shadow .2s ease-out;
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .btn:hover{background:var(--accent-hover); box-shadow:var(--shadow-glow);}
+  .btn:active{transform:scale(.97);}
+  .btn.ghost{background:var(--panel); color:var(--text); border:1px solid var(--border); width:auto;}
+  .btn.ghost:hover{background:var(--panel-2); box-shadow:none;}
+  .btn.danger{background:var(--danger); }
+  .btn.danger:hover{background:#f66;}
+  .btn.small{width:auto; height:40px; padding:0 16px; font-size:13.5px;}
+  .btn.tiny{width:auto; height:32px; padding:0 14px; font-size:12.5px; border-radius:10px;}
+  .btn:disabled{opacity:.5; cursor:not-allowed; box-shadow:none;}
+  .switch-auth{text-align:center; margin-top:14px; font-size:13px; color:var(--muted);}
+  .switch-auth a{color:var(--accent); cursor:pointer; text-decoration:none; font-weight:600;}
+  .err{color:var(--danger); font-size:13px; margin-top:10px; display:none;}
+
+  #app{display:none;}
+  .topbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:22px;}
+  .topbar h2{font-size:18px; font-weight:700;}
+  .topbar .who{font-size:12px; color:var(--muted);}
+
+  .stepper{display:flex; gap:8px; margin-bottom:22px;}
+  .step-pill{flex:1; text-align:center; padding:11px 6px; border-radius:10px; background:var(--panel);
+    border:1px solid var(--border); font-size:12.5px; color:var(--muted); font-weight:600;}
+  .step-pill.active{background:var(--accent-dim); border-color:var(--accent); color:var(--accent);}
+  .step-pill.done{color:var(--text);}
+  .step-pill .num{display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px;
+    border-radius:50%; background:var(--border); font-size:11px; margin-left:6px;}
+  .step-pill.active .num{background:var(--accent); color:#ffffff;}
+
+  .step{display:none;}
+  .step.active{display:block;}
+
+  .type-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:6px;}
+  .type-card{border:2px solid var(--border); background:var(--panel-2); border-radius:12px; padding:20px 14px;
+    text-align:center; cursor:pointer; transition:.15s;}
+  .type-card:hover{border-color:var(--border-strong); transform:translateY(-1px);}
+  .type-card.sel{border-color:var(--accent); background:var(--accent-dim);}
+  .type-card .icon{font-size:28px; margin-bottom:10px;}
+  .type-card h3{font-size:14.5px; margin-bottom:4px;}
+  .type-card p{font-size:12px; color:var(--muted); line-height:1.5;}
+
+  .sub-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:14px;}
+  .sub-card{border:2px solid var(--border); background:var(--panel-2); border-radius:10px; padding:14px; cursor:pointer;}
+  .sub-card.sel{border-color:var(--amber); background:var(--amber-dim);}
+  .sub-card h4{font-size:13.5px; margin-bottom:4px;}
+  .sub-card p{font-size:11.5px; color:var(--muted); line-height:1.5;}
+
+  .placement-row{display:flex; gap:12px; margin-top:6px;}
+  .pl-card{flex:1; border:2px solid var(--border); background:var(--panel-2); border-radius:10px;
+    padding:14px; text-align:center; cursor:pointer;}
+  .pl-card.sel{border-color:var(--accent); background:var(--accent-dim);}
+  .pl-card h4{font-size:13.5px; margin-bottom:3px;}
+  .pl-card p{font-size:11.5px; color:var(--muted);}
+
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  .grid3{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;}
+  .select-row{display:flex; gap:8px; align-items:flex-end;}
+  .select-row .field{flex:1; margin-bottom:0;}
+  .inline-add{display:none; margin-top:10px; background:var(--panel-2); border:1px dashed var(--border);
+    border-radius:10px; padding:12px;}
+  .inline-add.show{display:block;}
+  .inline-add .row{display:flex; gap:8px;}
+
+  .hint{font-size:12px; color:var(--muted); margin-top:6px;}
+  .note-box{background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:12px 14px;
+    font-size:12.5px; color:var(--muted); margin-top:14px;}
+
+  .codes-summary{display:flex; gap:18px; margin-bottom:14px; flex-wrap:wrap;}
+  .stat{background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:10px 16px;}
+  .stat b{display:block; font-size:19px; color:var(--accent);}
+  .stat span{font-size:11.5px; color:var(--muted);}
+  .tier-hint{font-size:12px; color:var(--muted); margin-bottom:12px;}
+  .codes-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; max-height:340px; overflow-y:auto; padding-left:4px;}
+  .code-chip{background:var(--panel-2); border:1.5px solid var(--border); border-radius:8px; padding:9px 10px;
+    font-size:12px; cursor:pointer; user-select:none; transition:.12s;}
+  .code-chip.premium{border-color:var(--amber); background:var(--amber-dim);}
+  .code-chip .c{font-weight:700; color:var(--amber); direction:ltr; display:block; margin-bottom:3px; font-family:var(--font-mono);}
+  .code-chip .t{color:var(--muted); font-size:11px;}
+  .code-chip .tier-badge{float:left; font-size:10px; font-weight:700;}
+  .code-chip.premium .tier-badge{color:var(--amber);}
+  .side-tag{display:inline-block; font-size:10px; padding:1px 6px; border-radius:5px; margin-left:4px;}
+  .side-tag.front{background:var(--accent-dim); color:var(--accent);}
+  .side-tag.back{background:var(--amber-dim); color:var(--amber);}
+
+  .review-row{display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px dashed var(--border); font-size:13.5px;}
+  .review-row:last-child{border-bottom:none;}
+  .review-row .k{color:var(--muted);}
+  .review-row .v{font-weight:600;}
+
+  .actions{display:flex; justify-content:space-between; margin-top:22px;}
+  .actions .right{display:flex; gap:10px;}
+
+  .success-box{text-align:center; padding:30px 10px;}
+  .success-box .tick{width:56px; height:56px; border-radius:50%; background:var(--accent-dim);
+    color:var(--accent); font-size:26px; display:flex; align-items:center; justify-content:center; margin:0 auto 16px;}
+  .success-box h3{font-size:18px; margin-bottom:6px;}
+  .success-box p{color:var(--muted); font-size:13px; margin-bottom:20px;}
+
+  .toast{position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--panel-2);
+    border:1px solid var(--border); padding:12px 20px; border-radius:10px; font-size:13px; display:none; z-index:99;}
+  .toast.err{border-color:var(--danger); color:#be123c;}
+
+  @media (max-width:640px){
+    .type-grid, .grid2, .grid3, .sub-grid, .placement-row{grid-template-columns:1fr; flex-direction:column;}
+  }
+
+  /* ===== أنماط تطبيق المسح ===== */
+  .phone{
+    max-width:400px; margin:20px auto 0; background:var(--panel); border:1px solid var(--border);
+    border-radius:22px; padding:22px 18px 26px; box-shadow:var(--shadow); position:relative;
+  }
+  .phone::before{
+    content:'PDA / MOBILE'; position:absolute; top:-11px; right:50%; transform:translateX(50%);
+    background:var(--bg); color:var(--muted); font-size:9.5px; font-family:var(--font-mono);
+    letter-spacing:1.5px; padding:2px 10px; border:1px solid var(--border); border-radius:20px;
+  }
+  .phone::after{
+    content:''; position:absolute; bottom:9px; right:50%; transform:translateX(50%);
+    width:34px; height:3px; border-radius:2px; background:var(--border-strong);
+  }
+  .home-btn{
+    display:flex; align-items:center; gap:14px; background:var(--panel); border:1px solid var(--border);
+    border-radius:14px; padding:16px 18px; margin-bottom:10px; cursor:pointer; font-size:15px; font-weight:700;
+    transition:border-color .15s, transform .15s, background .15s;
+  }
+  .home-btn:hover{border-color:var(--border-strong); transform:translateX(-2px);}
+  .home-btn .ic{font-size:20px; width:38px; height:38px; display:flex; align-items:center; justify-content:center;
+    border-radius:10px; background:var(--panel-2); flex-shrink:0;}
+  .home-btn.primary{background:var(--accent-dim); border-color:var(--accent); color:var(--accent);}
+  .home-btn.primary .ic{background:var(--accent-dim); color:var(--accent);}
+  .home-btn .sub{display:block; font-size:11.5px; font-weight:500; color:var(--muted); margin-top:2px;}
+  .who{font-size:11.5px; color:var(--muted); text-align:center; margin-bottom:14px;}
+  .who a{color:var(--muted); text-decoration:underline; cursor:pointer;}
+  #qr-reader{border-radius:14px; overflow:hidden; border:1px solid var(--border);}
+  .manual-row{display:flex; gap:8px; margin-top:12px;}
+  .manual-row input{flex:1;}
+  .status-dot{width:9px; height:9px; border-radius:50%; display:inline-block; margin-left:6px;}
+  .status-dot.vacant{background:var(--muted);}
+  .status-dot.occupied{background:var(--accent);}
+  .status-dot.maintenance{background:var(--amber);}
+  .detail-row{display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px dashed var(--border); font-size:14px;}
+  .detail-row:last-child{border-bottom:none;}
+  .detail-row .k{color:var(--muted);}
+  .detail-row .v{font-weight:600;}
+  .code-title{font-size:20px; font-weight:800; direction:ltr; text-align:center; margin-bottom:4px; font-family:var(--font-mono);}
+  .code-tier{text-align:center; font-size:12px; margin-bottom:14px;}
+  .code-tier.premium{color:var(--amber);}
+  .code-tier.standard{color:var(--muted);}
+  .actions-row{display:flex; gap:8px; margin-top:14px;}
+  .actions-row .btn{flex:1;}
+  .hist-item{padding:10px 0; border-bottom:1px solid var(--border); font-size:13px;}
+  .hist-item .badge{display:inline-block; font-size:11px; padding:2px 8px; border-radius:6px; margin-left:6px; font-weight:700;}
+  .badge.create{background:var(--accent-dim); color:var(--accent);}
+  .badge.edit{background:var(--amber-dim); color:var(--amber);}
+  .badge.end{background:var(--danger-dim); color:var(--danger);}
+  .hist-item .meta{color:var(--muted); font-size:11.5px; margin-top:4px;}
+  .scan-page{display:none;}
+  .scan-page.active{display:block;}
+  .menu-back{color:var(--muted); font-size:13px; cursor:pointer; text-decoration:underline; display:inline-block; margin-bottom:14px;}
+  .user-row{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:10px;}
+  .user-row .u-email{font-weight:700; font-size:14px; margin-bottom:2px;}
+  .user-row .u-role{font-size:11.5px; color:var(--muted); margin-bottom:10px;}
+  .user-row .u-perms{display:flex; gap:16px; flex-wrap:wrap; margin-bottom:10px;}
+  .user-row label{display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;}
+  .user-row input[type=checkbox]{width:auto;}
+  .cat-row{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:10px;}
+  .cat-row .cat-name{font-weight:700; font-size:15px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;}
+  .sub-chip{display:inline-flex; align-items:center; gap:6px; background:var(--panel-2); border:1px solid var(--border);
+    border-radius:8px; padding:5px 10px; font-size:12.5px; margin:0 4px 6px 0;}
+  .sub-chip .del{color:var(--danger); cursor:pointer; font-weight:700;}
+  .cat-add-sub{display:flex; gap:8px; margin-top:8px;}
+  .cat-add-sub input{flex:1;}
+
+  /* ===== تقارير المساحات ===== */
+  .report-tab-btn.sel{background:var(--accent); color:#ffffff; border-color:var(--accent);}
+  .rpt-table{width:100%; border-collapse:collapse; font-size:13px;}
+  .rpt-table th{text-align:right; padding:9px 10px; color:var(--muted); font-size:11.5px; border-bottom:1px solid var(--border-strong); white-space:nowrap;}
+  .rpt-table td{padding:9px 10px; border-bottom:1px solid var(--border); white-space:nowrap;}
+  .rpt-table tbody tr:hover{background:var(--panel-2);}
+  .score-bar{position:relative; width:100px; height:8px; background:var(--panel-2); border-radius:5px; overflow:hidden; display:inline-block; vertical-align:middle; margin-left:8px;}
+  .score-bar .fill{position:absolute; top:0; right:0; height:100%; background:linear-gradient(90deg, var(--accent), var(--accent-2)); border-radius:5px;}
+  .kpi-mini{background:var(--panel-2); border:1px solid var(--border); border-radius:12px; padding:14px; text-align:center;}
+  .kpi-mini b{display:block; font-size:20px; color:var(--accent); margin-bottom:4px; font-family:var(--font-mono);}
+  .kpi-mini span{font-size:11px; color:var(--muted);}
+  .cat-report-row{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:10px; cursor:pointer;}
+  .cat-report-row .head{display:flex; justify-content:space-between; align-items:center;}
+  .cat-report-detail{margin-top:10px; padding-top:10px; border-top:1px dashed var(--border); display:none;}
+  .cat-report-detail.open{display:block;}
+
+  /* ============ Sidebar shell (SaaS layout) ============ */
+  #app-shell{display:flex; min-height:100vh;}
+  #sidebar{
+    width:264px; flex-shrink:0; background:var(--panel); border-left:1px solid var(--border);
+    display:flex; flex-direction:column; padding:var(--sp-5) var(--sp-4); position:sticky; top:0; height:100vh;
+  }
+  .sidebar-brand{display:flex; align-items:center; gap:10px; padding:var(--sp-2) var(--sp-2) var(--sp-6);}
+  .sidebar-nav{display:flex; flex-direction:column; gap:2px; flex:1;}
+  .nav-item{
+    display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:var(--radius);
+    color:var(--muted); font-size:14px; font-weight:500; cursor:pointer; transition:background .15s, color .15s;
+  }
+  .nav-item i{font-size:19px; width:20px; text-align:center;}
+  .nav-item:hover{background:var(--panel-2); color:var(--text);}
+  .nav-item.active{background:var(--accent-dim); color:var(--accent); box-shadow:inset 3px 0 0 var(--accent);}
+  .nav-item.active i{color:var(--accent-hover);}
+  .nav-divider{height:1px; background:var(--border); margin:var(--sp-3) 6px;}
+  .sidebar-profile{border-top:1px solid var(--border); padding-top:var(--sp-4); margin-top:var(--sp-3);}
+  .sidebar-profile .sp-email{font-size:12.5px; font-weight:600; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .sidebar-profile .sp-role{font-size:11px; color:var(--amber); margin-top:2px;}
+  .sidebar-profile a{font-size:12px; color:var(--muted); text-decoration:none; display:flex; align-items:center; gap:6px; margin-top:10px; cursor:pointer;}
+  .sidebar-profile a:hover{color:var(--danger);}
+
+  #content-area{flex:1; min-width:0; padding:var(--sp-8) var(--sp-10); max-width:1180px;}
+  .topbar-main{display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--sp-6);}
+  .breadcrumb{font-size:22px; font-weight:600; color:var(--text);}
+
+  .dash-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:var(--sp-4);}
+  .dash-card{
+    background:var(--panel-2); border:1px solid var(--border); border-radius:var(--radius-card);
+    padding:var(--sp-6); cursor:pointer; transition:transform .15s ease-out, box-shadow .15s ease-out;
+  }
+  .dash-card:hover{transform:translateY(-3px); box-shadow:var(--shadow-glow); border-color:var(--accent);}
+  .dash-card .dc-ic{
+    width:44px; height:44px; border-radius:14px; background:linear-gradient(135deg, var(--accent-dim), var(--accent-2-dim)); color:var(--accent);
+    display:flex; align-items:center; justify-content:center; font-size:21px; margin-bottom:var(--sp-4);
+  }
+  .dash-card h3{font-size:16px; font-weight:600; margin-bottom:4px;}
+  .dash-card p{font-size:13px; color:var(--muted);}
+
+  @media (max-width:820px){
+    #sidebar{position:fixed; right:0; top:0; z-index:50; transform:translateX(100%); transition:transform .2s; box-shadow:var(--shadow);}
+    #sidebar.open{transform:translateX(0);}
+    #content-area{padding:var(--sp-5);}
+    #mobile-nav-toggle{display:flex !important;}
+  }
+  #mobile-nav-toggle{
+    display:none; width:40px; height:40px; border-radius:12px; background:var(--panel-2); border:1px solid var(--border);
+    color:var(--text); align-items:center; justify-content:center; font-size:19px; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap" id="auth-screen">
+  <div class="brand">
+    <svg class="logo-mark" width="30" height="30" viewBox="0 0 30 30" fill="none">
+      <rect x="1" y="1" width="28" height="28" rx="6" stroke="var(--accent)" stroke-width="1.2"/>
+      <rect x="6" y="7" width="6" height="6" rx="1" fill="var(--accent)"/>
+      <rect x="14" y="7" width="6" height="6" rx="1" fill="none" stroke="var(--accent)" stroke-width="1.1"/>
+      <rect x="6" y="15" width="6" height="6" rx="1" fill="none" stroke="var(--accent)" stroke-width="1.1"/>
+      <rect x="14" y="15" width="6" height="6" rx="1" fill="var(--amber)"/>
+    </svg>
+    <div class="brand-text">
+      <h1>استخبارات الموردين</h1>
+      <span class="brand-sub">MASAYEL · SPACE OS</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 id="auth-title">تسجيل الدخول</h2>
+    <p class="sub" id="auth-sub">ادخل بحسابك للمتابعة إلى نظام إدارة المساحات.</p>
+    <div class="field"><label>البريد الإلكتروني</label><input type="email" id="auth-email"></div>
+    <div class="field"><label>كلمة المرور</label><input type="password" id="auth-pass"></div>
+    <button class="btn" id="auth-submit">دخول</button>
+    <div class="err" id="auth-err"></div>
+    <div class="switch-auth" id="auth-switch">مفيش حساب لسه؟ <a id="auth-toggle">أنشئ حساب جديد</a></div>
+  </div>
+</div>
+
+<div id="app-shell" style="display:none;">
+  <nav id="sidebar">
+    <div class="sidebar-brand">
+      <svg width="26" height="26" viewBox="0 0 30 30" fill="none">
+        <rect x="1" y="1" width="28" height="28" rx="6" stroke="var(--accent)" stroke-width="1.2"/>
+        <rect x="6" y="7" width="6" height="6" rx="1" fill="var(--accent)"/>
+        <rect x="14" y="7" width="6" height="6" rx="1" fill="none" stroke="var(--accent)" stroke-width="1.1"/>
+        <rect x="6" y="15" width="6" height="6" rx="1" fill="none" stroke="var(--accent)" stroke-width="1.1"/>
+        <rect x="14" y="15" width="6" height="6" rx="1" fill="var(--amber)"/>
+      </svg>
+      <div class="brand-text"><h1 style="font-size:13px;">استخبارات الموردين</h1><span class="brand-sub">SPACE OS</span></div>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-item active" data-section="dashboard-home"><i class="ti ti-layout-dashboard"></i><span>الرئيسية</span></div>
+      <div class="nav-item" id="nav-go-rack" data-section="app"><i class="ti ti-plus"></i><span>إنشاء رف جديد</span></div>
+      <div class="nav-item" id="nav-go-scan" data-section="scan-app"><i class="ti ti-qrcode"></i><span>مسح الباركود</span></div>
+      <div class="nav-item" id="nav-go-reports" data-section="reports-app" style="display:none;"><i class="ti ti-chart-bar"></i><span>تقارير المساحات</span></div>
+      <div class="nav-item" id="nav-go-categories" data-section="categories-app" style="display:none;"><i class="ti ti-tag"></i><span>إدارة التصنيفات</span></div>
+      <div class="nav-item" id="nav-go-users" data-section="users-app" style="display:none;"><i class="ti ti-users"></i><span>إدارة المستخدمين</span></div>
+    </div>
+    <div class="sidebar-profile">
+      <div class="sp-email" id="sidebar-email"></div>
+      <div class="sp-role" id="sidebar-role"></div>
+      <a id="sidebar-logout"><i class="ti ti-logout-2"></i> تسجيل خروج</a>
+    </div>
+  </nav>
+
+  <main id="content-area">
+    <div class="topbar-main">
+      <div class="breadcrumb" id="breadcrumb">الرئيسية</div>
+      <div id="mobile-nav-toggle"><i class="ti ti-menu-2"></i></div>
+    </div>
+
+    <div id="dashboard-home" class="content-section">
+      <div class="dash-grid">
+        <div class="dash-card" id="dash-go-rack"><div class="dc-ic"><i class="ti ti-plus"></i></div><h3>إنشاء رف جديد</h3><p>رف، طبلية، أو ثلاجة</p></div>
+        <div class="dash-card" id="dash-go-scan"><div class="dc-ic"><i class="ti ti-qrcode"></i></div><h3>مسح الباركود</h3><p>عرض وتعديل حالة القواطع</p></div>
+        <div class="dash-card" id="dash-go-reports" style="display:none;"><div class="dc-ic"><i class="ti ti-chart-bar"></i></div><h3>تقارير المساحات</h3><p>خريطة الموقع والإحصائيات</p></div>
+        <div class="dash-card" id="dash-go-categories" style="display:none;"><div class="dc-ic"><i class="ti ti-tag"></i></div><h3>إدارة التصنيفات</h3><p>رئيسية وفرعية</p></div>
+        <div class="dash-card" id="dash-go-users" style="display:none;"><div class="dc-ic"><i class="ti ti-users"></i></div><h3>إدارة المستخدمين</h3><p>تحديد من يشوف ويعمل إيه</p></div>
+      </div>
+    </div>
+
+  <div id="restricted-screen" class="content-section" style="display:none;">
+    <div class="card" style="max-width:440px; margin:40px auto; text-align:center;">
+      <div style="font-size:38px; margin-bottom:10px;">🔒</div>
+      <h2 style="margin-bottom:8px;">إنشاء الأرفف مقصور على المالك</h2>
+      <p style="color:var(--muted); font-size:13.5px; margin-bottom:16px;">
+        حسابك (<b id="restricted-email"></b>) صلاحيته "مساحات فقط" — تقدر تستخدم تطبيق مسح الباركود لعرض وتعديل حالة القواطع الموجودة، لكن إنشاء رف جديد متاح للمالك بس.
+      </p>
+      <button class="btn" id="restricted-go-scan" style="margin-bottom:10px;">افتح تطبيق مسح الباركود</button>
+      <button class="btn ghost" id="restricted-back-menu" style="margin-bottom:10px;">القائمة الرئيسية</button>
+      <a id="restricted-logout" style="color:var(--muted); cursor:pointer; text-decoration:underline; font-size:13px;">تسجيل خروج</a>
+    </div>
+  </div>
+
+  <!-- ============ إدارة صلاحيات المستخدمين ============ -->
+  <div id="users-app" class="content-section" style="display:none;">
+    <div class="wrap" style="max-width:640px; margin:40px auto;">
+      <a class="menu-back" id="users-back-menu">→ القائمة الرئيسية</a>
+      <h2 style="margin-bottom:14px;">إدارة صلاحيات المستخدمين</h2>
+      <p class="hint" style="margin-bottom:16px;">حدد لكل مستخدم إيه المسموح له يشوفه ويعمله. المالك (إنت) دايمًا كل الصلاحيات معاه تلقائيًا.</p>
+      <div id="users-list"><p style="color:var(--muted); font-size:13px;">جاري التحميل...</p></div>
+    </div>
+  </div>
+
+  <div id="categories-app" class="content-section" style="display:none;">
+    <div class="wrap" style="max-width:640px; margin:40px auto;">
+      <a class="menu-back" id="categories-back-menu">→ القائمة الرئيسية</a>
+      <h2 style="margin-bottom:6px;">إدارة التصنيفات</h2>
+      <p class="hint" style="margin-bottom:16px;">أضف تصنيفات رئيسية وفرعية جاهزة تستخدمها لاحقًا في إنشاء الأرفف وتصنيف القواطع.</p>
+
+      <div class="card" style="margin-bottom:16px;">
+        <div class="field"><label>اسم تصنيف رئيسي جديد</label>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="cat-new-name" placeholder="مثال: مواد غذائية">
+            <button class="btn small" id="cat-add-btn">إضافة</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="cat-list"><p style="color:var(--muted); font-size:13px;">جاري التحميل...</p></div>
+    </div>
+  </div>
+
+  <!-- ============ تقارير المساحات ============ -->
+  <div id="reports-app" class="content-section" style="display:none;">
+    <div class="wrap" style="max-width:900px; margin:30px auto;">
+      <a class="menu-back" id="reports-back-menu">→ القائمة الرئيسية</a>
+      <h2 style="margin-bottom:14px;">تقارير المساحات</h2>
+
+      <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
+        <button class="btn tiny report-tab-btn sel" data-tab="map">خريطة الموقع</button>
+        <button class="btn tiny ghost report-tab-btn" data-tab="overview">نظرة عامة</button>
+        <button class="btn tiny ghost report-tab-btn" data-tab="suppliers">نسبة كل مورد</button>
+        <button class="btn tiny ghost report-tab-btn" data-tab="structure">التصنيف الهيكلي</button>
+        <button class="btn tiny ghost report-tab-btn" data-tab="categories">توزيع التصنيفات</button>
+        <button class="btn tiny ghost report-tab-btn" data-tab="turnover">معدل الدوران</button>
+        <button class="btn tiny ghost report-tab-btn" data-tab="nospace">موردين بلا مساحة</button>
+      </div>
+
+      <div id="report-content"><p style="color:var(--muted); font-size:13px;">جاري التحميل...</p></div>
+    </div>
+  </div>
+
+  <div id="app" class="content-section">
+    <div class="topbar">
+      <h2>➕ إنشاء رف جديد</h2>
+      <div class="who"><a id="app-back-menu" style="color:var(--muted); cursor:pointer; text-decoration:underline;">القائمة الرئيسية</a> · مسجّل دخول: <b id="who-email"></b> · <a id="logout-link" style="color:var(--muted); cursor:pointer; text-decoration:underline;">خروج</a></div>
+    </div>
+
+    <div class="stepper">
+      <div class="step-pill active" data-step="1"><span class="num">1</span> نوع الرف</div>
+      <div class="step-pill" data-step="2"><span class="num">2</span> الفرع والموقع</div>
+      <div class="step-pill" data-step="3"><span class="num">3</span> الكود والتصنيف</div>
+      <div class="step-pill" data-step="4"><span class="num">4</span> مراجعة وحفظ</div>
+    </div>
+
+    <div class="card">
+
+      <!-- Step 1: النوع -->
+      <div class="step active" id="step-1">
+        <h3 style="margin-bottom:4px;">اختر نوع الرف</h3>
+        <p class="hint" style="margin-bottom:16px;">النوع بيحدد طريقة توليد أكواد القواطع تلقائيًا.</p>
+        <div class="type-grid">
+          <div class="type-card" data-type="shelf">
+            <div class="icon"><i class="ti ti-layout-grid"></i></div>
+            <h3>رف عادي (جندولة)</h3>
+            <p>أعمدة × 4 مستويات ثابتة (ربع/نص/تلات ارباع/كامل).</p>
+          </div>
+          <div class="type-card" data-type="freezer">
+            <div class="icon"><i class="ti ti-snowflake"></i></div>
+            <h3>ثلاجة</h3>
+            <p>مجموعة وحدات متكررة — كل وحدة نوع A (زي الرف) أو نوع B (بابين وحوض).</p>
+          </div>
+          <div class="type-card" data-type="pallet">
+            <div class="icon"><i class="ti ti-package"></i></div>
+            <h3>طبلية</h3>
+            <p>أعمدة × 4 مستويات، زي الرف بالظبط.</p>
+          </div>
+        </div>
+
+        <div id="freezer-sub-wrap" style="display:none;">
+          <p class="hint" style="margin-top:18px; margin-bottom:6px;">اختار نوع وحدة الثلاجة:</p>
+          <div class="sub-grid">
+            <div class="sub-card" data-sub="A">
+              <h4>نوع A</h4>
+              <p>كل وحدة شكلها زي الرف العادي — 4 مستويات.</p>
+            </div>
+            <div class="sub-card" data-sub="B">
+              <h4>نوع B</h4>
+              <p>كل وحدة = بابين (كل باب ÷2) + حوض واحد ÷4 = 8 قواطع للوحدة.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: الفرع والموقع -->
+      <div class="step" id="step-2">
+        <div id="placement-section">
+        <h3 style="margin-bottom:6px;">تصنيف الموضع</h3>
+        <p class="hint" style="margin-bottom:10px;">حائطي = صف قواطع واحد. وسطى = صفين (زي الرف اللي شرحناه) بنفس عدد القواطع لكل صف.</p>
+        <div class="placement-row" style="margin-bottom:20px;">
+          <div class="pl-card" data-placement="wall">
+            <h4>حائطي</h4>
+            <p>صف واحد بس</p>
+          </div>
+          <div class="pl-card" data-placement="island">
+            <h4>وسطى</h4>
+            <p>صفين (أمامي + خلفي) بنفس الأرقام</p>
+          </div>
+        </div>
+        </div>
+
+        <div id="endcaps-section">
+        <h3 style="margin-bottom:6px;">الجندولتين الطرفيتين (اختياري)</h3>
+        <p class="hint" style="margin-bottom:10px;">كل واحدة مستقلة تمامًا — ممكن تفعّل واحدة بس، الاتنين مع بعض، أو تسيبهم مع بعض.</p>
+        <div class="placement-row">
+          <label class="pl-card" id="endcap-front-toggle" style="display:block;">
+            <input type="checkbox" id="chk-front-endcap" style="width:auto; margin-left:8px; vertical-align:middle;">
+            <h4 style="display:inline;">جندولة أمامية</h4>
+            <p>طرف أمامي بـ4 مستويات</p>
+          </label>
+          <label class="pl-card" id="endcap-back-toggle" style="display:block;">
+            <input type="checkbox" id="chk-back-endcap" style="width:auto; margin-left:8px; vertical-align:middle;">
+            <h4 style="display:inline;">جندولة خلفية</h4>
+            <p>طرف خلفي بـ4 مستويات</p>
+          </label>
+        </div>
+        </div>
+
+        <h3 style="margin:20px 0 10px;">الفرع والطابق</h3>
+        <div class="grid2">
+          <div>
+            <div class="select-row">
+              <div class="field"><label>الفرع *</label>
+                <select id="f-branch"><option value="">اختر فرع...</option></select>
+              </div>
+              <button class="btn tiny ghost" id="add-branch-btn" type="button">+ فرع جديد</button>
+            </div>
+            <div class="inline-add" id="add-branch-box">
+              <div class="row">
+                <input type="text" id="new-branch-code" placeholder="كود (مثال: MC)" style="direction:ltr;">
+                <input type="text" id="new-branch-name" placeholder="اسم الفرع">
+              </div>
+              <button class="btn tiny" id="save-branch-btn" type="button" style="margin-top:8px;">حفظ الفرع</button>
+            </div>
+          </div>
+          <div>
+            <div class="select-row">
+              <div class="field"><label>الطابق *</label>
+                <select id="f-floor"><option value="">اختر الفرع الأول...</option></select>
+              </div>
+              <button class="btn tiny ghost" id="add-floor-btn" type="button">+ طابق جديد</button>
+            </div>
+            <div class="inline-add" id="add-floor-box">
+              <div class="row">
+                <input type="text" id="new-floor-code" placeholder="كود (مثال: G)" style="direction:ltr;">
+                <input type="text" id="new-floor-name" placeholder="اسم الطابق (أرضي)">
+              </div>
+              <button class="btn tiny" id="save-floor-btn" type="button" style="margin-top:8px;">حفظ الطابق</button>
+            </div>
+          </div>
+        </div>
+
+        <h3 style="margin:20px 0 10px;">تصنيف المنتجات المعروضة</h3>
+        <div class="grid2">
+          <div>
+            <div class="select-row">
+              <div class="field"><label>التصنيف الرئيسي</label>
+                <select id="f-category"><option value="">بدون تصنيف...</option></select>
+              </div>
+              <button class="btn tiny ghost" id="add-category-btn" type="button">+ تصنيف جديد</button>
+            </div>
+            <div class="inline-add" id="add-category-box">
+              <div class="row">
+                <input type="text" id="new-category-name" placeholder="مثال: مواد غذائية">
+              </div>
+              <button class="btn tiny" id="save-category-btn" type="button" style="margin-top:8px;">حفظ التصنيف</button>
+            </div>
+          </div>
+          <div>
+            <div class="select-row">
+              <div class="field"><label>التصنيف الفرعي</label>
+                <select id="f-subcategory"><option value="">اختر التصنيف الرئيسي الأول...</option></select>
+              </div>
+              <button class="btn tiny ghost" id="add-subcategory-btn" type="button">+ فرعي جديد</button>
+            </div>
+            <div class="inline-add" id="add-subcategory-box">
+              <div class="row">
+                <input type="text" id="new-subcategory-name" placeholder="مثال: ألبان">
+              </div>
+              <button class="btn tiny" id="save-subcategory-btn" type="button" style="margin-top:8px;">حفظ الفرعي</button>
+            </div>
+          </div>
+        </div>
+
+        <h3 style="margin:20px 0 10px;">التفاصيل</h3>
+        <div class="grid3">
+          <div class="field"><label>القطاع</label><input type="text" id="f-section" placeholder="مثال: B"></div>
+          <div class="field"><label>الاتجاه</label>
+            <select id="f-orientation"><option value="يمين">يمين</option><option value="شمال">شمال</option></select>
+          </div>
+          <div class="field" id="parts-count-field"><label>عدد الأعمدة / وحدات الثلاجة *</label><input type="number" id="f-parts" min="1" placeholder="6"></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label>العرض (سم)</label><input type="number" id="f-width" placeholder="120"></div>
+          <div class="field"><label>العمق (سم)</label><input type="number" id="f-depth" placeholder="45"></div>
+        </div>
+        <div class="field"><label>ملاحظات (اختياري)</label><textarea id="f-notes" rows="2"></textarea></div>
+        <div class="note-box" id="levels-note-box">كل عمود بينقسم تلقائيًا لـ4 مستويات تأجير ثابتة (ربع/نص/تلات ارباع/كامل).</div>
+      </div>
+
+      <!-- Step 3: الكود والتصنيف -->
+      <div class="step" id="step-3">
+        <div class="field"><label>كود الرف (متولّد تلقائيًا)</label><input type="text" id="f-code" readonly></div>
+        <div class="codes-summary">
+          <div class="stat"><b id="prev-count">0</b><span>إجمالي القواطع</span></div>
+          <div class="stat"><b id="premium-count">0</b><span>قواطع مميزة</span></div>
+        </div>
+        <p class="tier-hint">دوس على أي قاطع عشان تحدده كـ"مميز" (إيجار أعلى) — الجندولتين الطرفيتين (لو مفعّلتين) متحددة مميزة تلقائيًا وتقدر تغيّرها.</p>
+        <div class="codes-grid" id="codes-grid"></div>
+      </div>
+
+      <!-- Step 4: المراجعة -->
+      <div class="step" id="step-4">
+        <h3 style="margin-bottom:14px;">مراجعة نهائية</h3>
+        <div id="review-list"></div>
+      </div>
+
+      <!-- Step 5 (نجاح) -->
+      <div class="step" id="step-5">
+        <div class="success-box">
+          <div class="tick"><i class="ti ti-check"></i></div>
+          <h3>تم إنشاء الرف بنجاح</h3>
+          <p id="success-detail"></p>
+        </div>
+        <div id="rack3d-wrap" style="overflow-x:auto; padding:10px 0; display:flex; gap:24px; justify-content:center;"></div>
+        <div style="text-align:center; margin-top:18px;">
+          <button class="btn" id="restart-btn" style="width:auto; padding:11px 26px;">إنشاء رف تاني</button>
+        </div>
+      </div>
+
+      <div class="actions" id="wizard-actions">
+        <button class="btn ghost small" id="back-btn">رجوع</button>
+        <div class="right">
+          <button class="btn small" id="next-btn">التالي</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ============ تطبيق مسح الباركود ============ -->
+  <div id="scan-app" class="content-section" style="display:none;">
+    <div class="phone">
+      <a class="menu-back" id="scan-back-menu">→ القائمة الرئيسية</a>
+      <div class="who">مسجّل: <b id="scan-who-email"></b> <span id="scan-who-role" style="color:var(--amber);"></span></div>
+
+      <div id="page-home" class="scan-page active">
+        <div class="home-btn primary" id="go-scan"><span class="ic">📷</span> مسح الباركود</div>
+        <div class="home-btn" id="go-manual"><span class="ic">🔍</span> بحث بالكود يدويًا</div>
+      </div>
+
+      <div id="page-scan" class="scan-page">
+        <div class="topbar"><span class="back" data-goto="page-home">→</span><h2>مسح الباركود</h2></div>
+        <div id="qr-reader" style="width:100%;"></div>
+        <p style="color:var(--muted); font-size:12.5px; text-align:center; margin-top:10px;">وجّه الكاميرا على الباركود، أو اكتب الكود يدويًا تحت</p>
+        <div class="manual-row">
+          <input type="text" id="manual-code" placeholder="مثال: 20-G001-A01-L01" style="direction:ltr;">
+          <button class="btn small" id="manual-search-btn">بحث</button>
+        </div>
+      </div>
+
+      <div id="page-details" class="scan-page">
+        <div class="topbar"><span class="back" data-goto="page-home">→</span><h2>تفاصيل القاطع</h2></div>
+        <div class="card">
+          <div class="code-title" id="d-code"></div>
+          <div class="code-tier" id="d-tier"></div>
+          <div class="detail-row"><span class="k">الحالة</span><span class="v" id="d-status"></span></div>
+          <div class="detail-row"><span class="k">النوع</span><span class="v" id="d-unittype"></span></div>
+          <div class="detail-row"><span class="k">الرف</span><span class="v" id="d-rack"></span></div>
+          <div class="detail-row"><span class="k">الفرع / الطابق</span><span class="v" id="d-branch"></span></div>
+          <div class="detail-row"><span class="k">المورد</span><span class="v" id="d-supplier"></span></div>
+          <div class="detail-row" id="d-rental-row"><span class="k">قيمة الإيجار</span><span class="v" id="d-rental"></span></div>
+          <div class="detail-row"><span class="k">العقد</span><span class="v" id="d-contract"></span></div>
+          <div class="detail-row"><span class="k">التصنيف</span><span class="v" id="d-category"></span></div>
+          <div class="detail-row"><span class="k">ملاحظات</span><span class="v" id="d-notes"></span></div>
+        </div>
+        <div class="actions-row">
+          <button class="btn" id="go-edit">تعديل</button>
+          <button class="btn ghost" id="go-history">سجل التعديلات</button>
+        </div>
+      </div>
+
+      <div id="page-edit" class="scan-page">
+        <div class="topbar"><span class="back" data-goto="page-details">→</span><h2>تعديل بيانات القاطع</h2></div>
+        <div class="card">
+          <div class="field"><label>الحالة</label>
+            <select id="e-status">
+              <option value="occupied">مؤجر</option>
+              <option value="vacant">فارغ</option>
+              <option value="maintenance">تحت الصيانة</option>
+            </select>
+          </div>
+          <div class="field"><label>كود المورد (اتركه فاضي لو مش هتغيّر)</label><input type="number" id="e-supplier-code" style="direction:ltr;"></div>
+          <div class="field"><label>التصنيف الرئيسي</label><select id="e-category"><option value="">بدون تغيير</option></select></div>
+          <div class="field"><label>التصنيف الفرعي</label><select id="e-subcategory"><option value="">بدون تغيير</option></select></div>
+          <div class="field"><label>ملاحظات</label><textarea id="e-notes" rows="3"></textarea></div>
+          <button class="btn" id="save-edit-btn">حفظ التعديل</button>
+          <div class="err" id="edit-err"></div>
+        </div>
+      </div>
+
+      <div id="page-history" class="scan-page">
+        <div class="topbar"><span class="back" data-goto="page-details">→</span><h2>سجل التعديلات</h2></div>
+        <div class="card" id="history-list">
+          <p style="color:var(--muted); font-size:13px;">جاري التحميل...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = "https://pvccdyevmjbxvuvlmvir.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_e-FSgP2rdrE7eq7ksTOiMQ_zWvYI4kf";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ===== PWA: manifest ديناميكي + service worker (يشتغل لما الصفحة تتفتح على https حقيقي) ===== */
+(function initPWA(){
+  const manifest = {
+    name: "استخبارات الموردين — إنشاء رف",
+    short_name: "إنشاء رف",
+    start_url: ".",
+    display: "standalone",
+    background_color: "#f8fafc",
+    theme_color: "#0d9488",
+    icons: [{ src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%23121a2c'/%3E%3Crect x='20' y='25' width='60' height='50' fill='none' stroke='%2322c55e' stroke-width='5'/%3E%3Cline x1='20' y1='50' x2='80' y2='50' stroke='%2322c55e' stroke-width='4'/%3E%3C/svg%3E", sizes: "100x100", type: "image/svg+xml" }]
+  };
+  const blob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+  document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
+
+  if('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')){
+    const swCode = `self.addEventListener('fetch', e => {});`;
+    const swBlob = new Blob([swCode], {type:'application/javascript'});
+    navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(()=>{});
+  }
+})();
+
+
+let isSignup = false;
+let currentStep = 1;
+let generatedParts = [];
+let selectedType = null;
+let selectedSub = null;
+let selectedPlacement = null;
+
+const $ = (id) => document.getElementById(id);
+
+function showToast(msg, isErr=false){
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isErr ? ' err' : '');
+  t.style.display = 'block';
+  setTimeout(()=> t.style.display='none', 3800);
+}
+
+/* ================= AUTH ================= */
+$('auth-toggle').addEventListener('click', () => {
+  isSignup = !isSignup;
+  $('auth-title').textContent = isSignup ? 'إنشاء حساب جديد' : 'تسجيل الدخول';
+  $('auth-sub').textContent = isSignup ? 'أنشئ حسابك — الصلاحية الافتراضية "مساحات فقط".' : 'ادخل بحسابك للمتابعة.';
+  $('auth-submit').textContent = isSignup ? 'إنشاء الحساب' : 'دخول';
+  $('auth-switch').innerHTML = isSignup ? 'عندك حساب بالفعل؟ <a id="auth-toggle2" style="color:var(--accent);cursor:pointer;font-weight:600;">سجّل دخول</a>' : 'مفيش حساب لسه؟ <a id="auth-toggle2" style="color:var(--accent);cursor:pointer;font-weight:600;">أنشئ حساب جديد</a>';
+  document.getElementById('auth-toggle2').addEventListener('click', () => $('auth-toggle').click());
+});
+
+$('auth-submit').addEventListener('click', async () => {
+  const email = $('auth-email').value.trim();
+  const password = $('auth-pass').value;
+  $('auth-err').style.display = 'none';
+  if(!email || !password){ showAuthErr('اكتب البريد وكلمة المرور.'); return; }
+  $('auth-submit').disabled = true;
+  try{
+    let res;
+    if(isSignup){ res = await sb.auth.signUp({ email, password }); }
+    else { res = await sb.auth.signInWithPassword({ email, password }); }
+    if(res.error) throw res.error;
+    if(isSignup && res.data.user && !res.data.session){
+      showToast('تم إنشاء الحساب — جرب تسجيل الدخول دلوقتي.');
+      $('auth-submit').disabled = false;
+      return;
+    }
+    await enterApp();
+  }catch(e){
+    showAuthErr(e.message || 'حصل خطأ، حاول تاني.');
+    $('auth-submit').disabled = false;
+  }
+});
+
+function showAuthErr(msg){ const el = $('auth-err'); el.textContent = msg; el.style.display='block'; }
+
+$('logout-link').addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); });
+$('restricted-logout').addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); });
+
+let currentRole = null;
+let currentUserEmail = null;
+
+let currentPerms = { can_view_spaces:false, can_manage_spaces:false, can_scan:false };
+
+const SECTION_LABELS = {
+  'dashboard-home': 'الرئيسية', 'app': 'إنشاء رف جديد', 'scan-app': 'مسح الباركود',
+  'reports-app': 'تقارير المساحات', 'categories-app': 'إدارة التصنيفات',
+  'users-app': 'إدارة المستخدمين', 'restricted-screen': 'إنشاء الأرفف'
+};
+
+function showSection(id){
+  document.querySelectorAll('.content-section').forEach(s => s.style.display = 'none');
+  $(id).style.display = 'block';
+  $('breadcrumb').textContent = SECTION_LABELS[id] || '';
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.section === id));
+  $('sidebar').classList.remove('open');
+  window.scrollTo(0,0);
+}
+
+async function goToSection(target){
+  if(target === 'app'){
+    if(currentRole !== 'owner' && !currentPerms.can_manage_spaces){
+      showSection('restricted-screen');
+      $('restricted-email').textContent = currentUserEmail;
+      return;
+    }
+    showSection('app');
+    $('who-email').textContent = currentUserEmail;
+    await loadBranches();
+    await loadCategories();
+  } else if(target === 'scan-app'){
+    showSection('scan-app');
+    $('scan-who-email').textContent = currentUserEmail;
+    const canEdit = currentRole === 'owner' || currentPerms.can_scan;
+    $('scan-who-role').textContent = currentRole === 'owner' ? '(مالك — عرض كامل)' : (canEdit ? '(مسح وتعديل)' : '(عرض فقط)');
+    scanReadOnly = !canEdit;
+    scanShowPage('page-home');
+  } else if(target === 'reports-app'){
+    showSection('reports-app');
+    await loadReportTab('map');
+  } else if(target === 'categories-app'){
+    showSection('categories-app');
+    await loadCategoriesAdmin();
+  } else if(target === 'users-app'){
+    showSection('users-app');
+    await loadUsersList();
+  } else {
+    showSection('dashboard-home');
+  }
+}
+
+function applyPermissionVisibility(){
+  $('sidebar-email').textContent = currentUserEmail;
+  $('sidebar-role').textContent = currentRole === 'owner' ? 'مالك — عرض كامل' : 'صلاحيات محدودة';
+  const showUsers = currentRole === 'owner';
+  const showCategories = currentRole === 'owner' || currentPerms.can_manage_spaces;
+  const showReports = currentRole === 'owner' || currentPerms.can_view_spaces || currentPerms.can_manage_spaces || currentPerms.can_scan;
+  ['nav-go-users','dash-go-users'].forEach(id => $(id).style.display = showUsers ? '' : 'none');
+  ['nav-go-categories','dash-go-categories'].forEach(id => $(id).style.display = showCategories ? '' : 'none');
+  ['nav-go-reports','dash-go-reports'].forEach(id => $(id).style.display = showReports ? '' : 'none');
+}
+
+async function enterApp(){
+  const { data: { user } } = await sb.auth.getUser();
+  if(!user) return;
+  currentUserEmail = user.email;
+
+  const { data: profile } = await sb.from('profiles').select('role, can_view_spaces, can_manage_spaces, can_scan').eq('id', user.id).single();
+  currentRole = profile ? profile.role : 'space_viewer';
+  currentPerms = profile ? {
+    can_view_spaces: profile.can_view_spaces,
+    can_manage_spaces: profile.can_manage_spaces,
+    can_scan: profile.can_scan
+  } : currentPerms;
+
+  $('auth-screen').style.display = 'none';
+  $('app-shell').style.display = 'flex';
+  applyPermissionVisibility();
+  showSection('dashboard-home');
+}
+
+document.querySelectorAll('.nav-item').forEach(el => {
+  el.addEventListener('click', () => goToSection(el.dataset.section));
+});
+$('dash-go-rack').addEventListener('click', () => goToSection('app'));
+$('dash-go-scan').addEventListener('click', () => goToSection('scan-app'));
+$('dash-go-reports').addEventListener('click', () => goToSection('reports-app'));
+$('dash-go-categories').addEventListener('click', () => goToSection('categories-app'));
+$('dash-go-users').addEventListener('click', () => goToSection('users-app'));
+$('mobile-nav-toggle').addEventListener('click', () => $('sidebar').classList.toggle('open'));
+
+$('sidebar-logout').addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); });
+$('app-back-menu').addEventListener('click', () => goToSection('dashboard-home'));
+$('restricted-back-menu').addEventListener('click', () => goToSection('dashboard-home'));
+$('restricted-logout').addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); });
+$('restricted-go-scan').addEventListener('click', () => goToSection('scan-app'));
+
+/* ============ إدارة صلاحيات المستخدمين ============ */
+$('users-back-menu').addEventListener('click', () => goToSection('dashboard-home'));
+
+async function loadUsersList(){
+  $('users-list').innerHTML = '<p style="color:var(--muted); font-size:13px;">جاري التحميل...</p>';
+  const { data, error } = await sb.rpc('list_users_for_permissions');
+  if(error){ $('users-list').innerHTML = '<p style="color:var(--danger); font-size:13px;">تعذّر التحميل: ' + error.message + '</p>'; return; }
+  if(!data || !data.length){ $('users-list').innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش مستخدمين.</p>'; return; }
+
+
+  $('users-list').innerHTML = data.map(u => {
+    if(u.role === 'owner'){
+      return `<div class="user-row"><div class="u-email">${u.email}</div><div class="u-role">مالك — كل الصلاحيات تلقائيًا</div></div>`;
+    }
+    return `
+    <div class="user-row" data-id="${u.id}">
+      <div class="u-email">${u.email}</div>
+      <div class="u-role">مساحات فقط</div>
+      <div class="u-perms">
+        <label><input type="checkbox" class="perm-view" ${u.can_view_spaces?'checked':''}> عرض المساحات</label>
+        <label><input type="checkbox" class="perm-manage" ${u.can_manage_spaces?'checked':''}> إنشاء/تعديل الأرفف</label>
+        <label><input type="checkbox" class="perm-scan" ${u.can_scan?'checked':''}> مسح وتحديث الباركود</label>
+      </div>
+      <button class="btn small save-perm-btn">حفظ</button>
+    </div>`;
+  }).join('');
+
+  document.querySelectorAll('.save-perm-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const row = btn.closest('.user-row');
+      const userId = row.dataset.id;
+      const canView = row.querySelector('.perm-view').checked;
+      const canManage = row.querySelector('.perm-manage').checked;
+      const canScanPerm = row.querySelector('.perm-scan').checked;
+      btn.disabled = true;
+      const { error } = await sb.rpc('update_user_permissions', {
+        p_user_id: userId, p_can_view_spaces: canView, p_can_manage_spaces: canManage, p_can_scan: canScanPerm
+      });
+      btn.disabled = false;
+      if(error){ showToast('فشل الحفظ: ' + error.message, true); return; }
+      showToast('تم حفظ الصلاحيات.');
+    });
+  });
+}
+
+/* ============ إدارة التصنيفات ============ */
+$('categories-back-menu').addEventListener('click', () => goToSection('dashboard-home'));
+
+async function loadCategoriesAdmin(){
+  $('cat-list').innerHTML = '<p style="color:var(--muted); font-size:13px;">جاري التحميل...</p>';
+  const { data: cats, error } = await sb.from('categories').select('*').order('name');
+  if(error){ $('cat-list').innerHTML = '<p style="color:var(--danger); font-size:13px;">تعذّر التحميل.</p>'; return; }
+  const { data: subs } = await sb.from('subcategories').select('*').order('name');
+
+  if(!cats || !cats.length){ $('cat-list').innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش تصنيفات لسه — ضيف واحد فوق.</p>'; return; }
+
+  $('cat-list').innerHTML = cats.map(c => {
+    const catSubs = (subs || []).filter(s => s.category_id === c.id);
+    return `
+    <div class="cat-row" data-id="${c.id}">
+      <div class="cat-name"><span>${c.name}</span><span class="del" data-del-cat="${c.id}" style="color:var(--danger); cursor:pointer; font-size:13px;">حذف التصنيف</span></div>
+      <div class="cat-subs">
+        ${catSubs.map(s => `<span class="sub-chip">${s.name} <span class="del" data-del-sub="${s.id}">×</span></span>`).join('') || '<span style="color:var(--muted); font-size:12.5px;">مفيش تصنيفات فرعية</span>'}
+      </div>
+      <div class="cat-add-sub">
+        <input type="text" placeholder="تصنيف فرعي جديد" class="new-sub-input">
+        <button class="btn tiny add-sub-btn" data-cat="${c.id}">إضافة</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.querySelectorAll('[data-del-cat]').forEach(el => el.addEventListener('click', async () => {
+    if(!confirm('حذف التصنيف ده وكل تصنيفاته الفرعية؟')) return;
+    const { error } = await sb.from('categories').delete().eq('id', el.dataset.delCat);
+    if(error){ showToast('فشل الحذف: ' + error.message, true); return; }
+    await loadCategoriesAdmin();
+  }));
+
+  document.querySelectorAll('[data-del-sub]').forEach(el => el.addEventListener('click', async () => {
+    const { error } = await sb.from('subcategories').delete().eq('id', el.dataset.delSub);
+    if(error){ showToast('فشل الحذف: ' + error.message, true); return; }
+    await loadCategoriesAdmin();
+  }));
+
+  document.querySelectorAll('.add-sub-btn').forEach(btn => btn.addEventListener('click', async () => {
+    const row = btn.closest('.cat-row');
+    const input = row.querySelector('.new-sub-input');
+    const name = input.value.trim();
+    if(!name){ showToast('اكتب اسم التصنيف الفرعي.', true); return; }
+    const { error } = await sb.from('subcategories').insert({ category_id: btn.dataset.cat, name });
+    if(error){ showToast('فشل الإضافة: ' + error.message, true); return; }
+    await loadCategoriesAdmin();
+  }));
+}
+
+$('cat-add-btn').addEventListener('click', async () => {
+  const name = $('cat-new-name').value.trim();
+  if(!name){ showToast('اكتب اسم التصنيف.', true); return; }
+  const { error } = await sb.from('categories').insert({ name });
+  if(error){ showToast('فشل الإضافة: ' + error.message, true); return; }
+  $('cat-new-name').value = '';
+  showToast('تم إضافة التصنيف.');
+  await loadCategoriesAdmin();
+});
+
+/* ============ تقارير المساحات ============ */
+const RACK_TYPE_LABELS = { shelf: 'رف عادي', pallet: 'طبلية', freezer: 'ثلاجة' };
+const CHART_COLORS = ['#0d9488','#d97706','#7c3aed','#e11d48','#0284c7','#db2777','#65a30d','#ea580c'];
+let chartInstances = {};
+
+function destroyChart(id){
+  if(chartInstances[id]){ chartInstances[id].destroy(); delete chartInstances[id]; }
+}
+
+function renderDonutChart(canvasId, items){
+  destroyChart(canvasId);
+  const ctx = document.getElementById(canvasId);
+  if(!ctx) return;
+  chartInstances[canvasId] = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: items.map(i => i.label),
+      datasets: [{ data: items.map(i => i.value), backgroundColor: CHART_COLORS, borderColor: '#ffffff', borderWidth: 2 }]
+    },
+    options: {
+      plugins: { legend: { position: 'bottom', labels: { color: '#64748b', font: { family: 'IBM Plex Sans Arabic', size: 12 }, padding: 14 } } },
+      cutout: '62%'
+    }
+  });
+}
+
+function renderBarChart(canvasId, items){
+  destroyChart(canvasId);
+  const ctx = document.getElementById(canvasId);
+  if(!ctx) return;
+  chartInstances[canvasId] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: items.map(i => i.label),
+      datasets: [{ data: items.map(i => i.value), backgroundColor: ['#0d9488','#7c3aed','#d97706','#e11d48','#0284c7','#db2777','#65a30d','#ea580c'], borderRadius: 6, maxBarThickness: 40 }]
+    },
+    options: {
+      indexAxis: 'y',
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#64748b', font: { family: 'IBM Plex Sans Arabic', size: 11 } }, grid: { color: 'rgba(15,23,42,.06)' } },
+        y: { ticks: { color: '#0f172a', font: { family: 'IBM Plex Sans Arabic', size: 12 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+
+$('reports-back-menu').addEventListener('click', () => goToSection('dashboard-home'));
+
+document.querySelectorAll('.report-tab-btn').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    document.querySelectorAll('.report-tab-btn').forEach(b => { b.classList.remove('sel'); b.classList.add('ghost'); });
+    btn.classList.add('sel'); btn.classList.remove('ghost');
+    await loadReportTab(btn.dataset.tab);
+  });
+});
+
+function scoreBar(pct){
+  const p = Math.max(0, Math.min(100, pct || 0));
+  return `<span class="score-bar"><span class="fill" style="width:${p}%;"></span></span>${p}%`;
+}
+
+/* ============ Treemap squarify (نفس خوارزمية النظام القديم بالظبط) ============ */
+function squarify(items, x, y, w, h){
+  const nodes = [];
+  function worst(row, length){
+    let max = -Infinity, min = Infinity, sum = 0;
+    row.forEach(r => { if(r.area > max) max = r.area; if(r.area < min) min = r.area; sum += r.area; });
+    const s2 = sum*sum, l2 = length*length;
+    return Math.max((l2*max)/s2, s2/(l2*min));
+  }
+  function recurse(items, x, y, w, h){
+    if(items.length === 0) return;
+    if(items.length === 1){ nodes.push({ item: items[0].item, x, y, w, h }); return; }
+    const horizontal = w >= h;
+    const length = horizontal ? h : w;
+    let row = [items[0]]; let i = 1;
+    while(i < items.length){
+      const testRow = row.concat([items[i]]);
+      if(worst(testRow, length) <= worst(row, length)){ row = testRow; i++; } else break;
+    }
+    const sum = row.reduce((s,r) => s+r.area, 0);
+    const thickness = sum / length;
+    if(horizontal){
+      let posY = y;
+      row.forEach(r => { const itemH = r.area/thickness; nodes.push({ item:r.item, x, y:posY, w:thickness, h:itemH }); posY += itemH; });
+      recurse(items.slice(row.length), x+thickness, y, w-thickness, h);
+    } else {
+      let posX = x;
+      row.forEach(r => { const itemW = r.area/thickness; nodes.push({ item:r.item, x:posX, y, w:itemW, h:thickness }); posX += itemW; });
+      recurse(items.slice(row.length), x, y+thickness, w, h-thickness);
+    }
+  }
+  recurse(items, x, y, w, h);
+  return nodes;
+}
+
+const CAT_PALETTE = ['#0d9488','#7c3aed','#d97706','#e11d48','#0284c7','#db2777','#65a30d','#ea580c','#84cc16','#06b6d4','#f97316','#a855f7'];
+function colorForCategory(cat, catList){
+  const idx = catList.indexOf(cat);
+  return CAT_PALETTE[idx % CAT_PALETTE.length];
+}
+
+async function loadReportTab(tab){
+  const el = $('report-content');
+  el.innerHTML = '<p style="color:var(--muted); font-size:13px;">جاري التحميل...</p>';
+
+  if(tab === 'map'){
+    const { data, error } = await sb.rpc('report_floor_map');
+    if(error){ el.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+error.message+'</p>'; return; }
+    if(!data || !data.length){ el.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش أرفف متسجّلة لسه.</p>'; return; }
+
+    const totalParts = data.reduce((s,u) => s + Math.max(1,u.total_parts), 0);
+    const totalOccupied = data.reduce((s,u) => s + u.occupied_parts, 0);
+    const vendorTotal = new Set();
+    const catList = Array.from(new Set(data.map(u => u.dominant_category)));
+    const W = 900, H = 480;
+    const items = data.map(u => ({ item:u, area: (Math.max(1,u.total_parts)/totalParts) * (W*H) }));
+    const rects = squarify(items, 0, 0, W, H);
+    const occRate = totalParts > 0 ? Math.round(totalOccupied/totalParts*100) : 0;
+
+    el.innerHTML = `
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px;">
+        <div class="kpi-mini"><b>${data.length}</b><span>عدد الأرفف</span></div>
+        <div class="kpi-mini"><b>${totalParts}</b><span>إجمالي القواطع</span></div>
+        <div class="kpi-mini"><b>${occRate}%</b><span>نسبة الإشغال</span></div>
+        <div class="kpi-mini"><b>${catList.length}</b><span>عدد التصنيفات الظاهرة</span></div>
+      </div>
+      <p style="color:var(--muted); font-size:12px; margin-bottom:10px;">حجم المربع = عدد القواطع، اللون حسب التصنيف الأغلب في الرف. دوس على أي رف لعرض تفاصيله.</p>
+      <div class="card" style="padding:10px;">
+        <div id="treemap-box" style="position:relative; width:100%; height:${H}px;"></div>
+      </div>
+      <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:12px;">
+        ${catList.slice(0,12).map(c => `<div style="display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--muted);"><span style="width:10px; height:10px; border-radius:3px; background:${colorForCategory(c,catList)};"></span>${c}</div>`).join('')}
+      </div>`;
+
+    const box = $('treemap-box');
+    rects.forEach(r => {
+      const u = r.item;
+      const color = colorForCategory(u.dominant_category, catList);
+      const div = document.createElement('div');
+      const showText = (r.w/W*100) > 6 && (r.h/H*100) > 7;
+      div.style.cssText = `position:absolute; left:${r.x/W*100}%; top:${r.y/H*100}%; width:${r.w/W*100}%; height:${r.h/H*100}%;
+        background:${color}22; border:1.5px solid ${color}; box-sizing:border-box; padding:5px; overflow:hidden; cursor:pointer;`;
+      if(showText){
+        div.innerHTML = `<div style="font-size:11px; font-weight:700; color:var(--text); direction:ltr;">${u.rack_code}</div>
+          <div style="font-size:9.5px; color:var(--muted); margin-top:2px;">${u.dominant_category}</div>
+          <div style="font-size:9.5px; color:var(--muted);">إشغال ${u.occ_pct}% · ${u.total_parts} قاطع</div>`;
+      }
+      div.title = `${u.rack_code} — ${u.dominant_category} — إشغال ${u.occ_pct}%`;
+      div.addEventListener('click', () => showRackDetail(u.rack_code));
+      box.appendChild(div);
+    });
+    return;
+  }
+
+  if(tab === 'overview'){
+    const { data, error } = await sb.rpc('report_space_overview');
+    if(error || !data || !data.length){ el.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش بيانات لسه.</p>'; return; }
+    const o = data[0];
+    const byType = o.by_rack_type || {};
+    el.innerHTML = `
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px;">
+        <div class="kpi-mini"><b>${o.total_area_parts}</b><span>إجمالي القواطع (المساحة)</span></div>
+        <div class="kpi-mini"><b>${o.avg_sales_per_sqm !== null ? Number(o.avg_sales_per_sqm).toFixed(3) : '—'}</b><span>متوسط المبيعات/قاطع</span></div>
+        <div class="kpi-mini"><b>${Object.keys(byType).length}</b><span>عدد أنواع الوحدات المستخدمة</span></div>
+      </div>
+      <div class="card">
+        <div style="font-weight:700; margin-bottom:14px;">المساحة حسب نوع الرف</div>
+        <div style="max-width:340px; margin:0 auto;"><canvas id="chart-overview"></canvas></div>
+      </div>`;
+    renderDonutChart('chart-overview', Object.entries(byType).map(([k,v]) => ({ label: RACK_TYPE_LABELS[k]||k, value: v })));
+  }
+
+  else if(tab === 'suppliers'){
+    const { data, error } = await sb.rpc('report_supplier_space_share');
+    if(error){ el.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+error.message+'</p>'; return; }
+    if(!data || !data.length){ el.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش قواطع متأجرة لموردين لسه.</p>'; return; }
+    el.innerHTML = `<div class="card" style="padding:0; overflow-x:auto;"><table class="rpt-table">
+      <thead><tr><th>كود</th><th>المورد</th><th>المساحة (قاطع)</th><th>نسبة من الإجمالي</th><th>صافي المشتريات</th><th>مبيعات/قاطع</th></tr></thead>
+      <tbody>${data.map(s => `<tr>
+        <td>${s.supplier_code ?? '—'}</td><td style="font-weight:600;">${s.supplier_name}</td>
+        <td>${s.area_parts}</td><td>${scoreBar(s.share_pct)}</td>
+        <td>${s.total_purchase_net_cost ? Number(s.total_purchase_net_cost).toFixed(2) : '—'}</td>
+        <td>${s.sales_per_sqm !== null ? Number(s.sales_per_sqm).toFixed(3) : '—'}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  }
+
+  else if(tab === 'structure'){
+    const { data, error } = await sb.rpc('report_structural_breakdown');
+    if(error){ el.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+error.message+'</p>'; return; }
+    if(!data || !data.length){ el.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش بيانات لسه.</p>'; return; }
+    el.innerHTML = `
+      <div class="card" style="margin-bottom:16px;">
+        <div style="font-weight:700; margin-bottom:14px;">توزيع الوحدات حسب النوع</div>
+        <div style="height:280px;"><canvas id="chart-structure"></canvas></div>
+      </div>
+      <div class="card" style="padding:0; overflow-x:auto;"><table class="rpt-table">
+      <thead><tr><th>نوع الرف</th><th>نوع الوحدة</th><th>العدد</th></tr></thead>
+      <tbody>${data.map(r => `<tr><td>${RACK_TYPE_LABELS[r.rack_type]||r.rack_type}</td><td>${r.unit_type}</td><td style="font-weight:700; color:var(--accent);">${r.cnt}</td></tr>`).join('')}</tbody>
+    </table></div>`;
+    renderBarChart('chart-structure', data.map(r => ({ label: (RACK_TYPE_LABELS[r.rack_type]||r.rack_type)+' — '+r.unit_type, value: r.cnt })));
+  }
+
+  else if(tab === 'categories'){
+    const { data, error } = await sb.rpc('report_category_breakdown');
+    if(error){ el.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+error.message+'</p>'; return; }
+    if(!data || !data.length){ el.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش قواطع مصنّفة لسه.</p>'; return; }
+    el.innerHTML = data.map((c, i) => `
+      <div class="cat-report-row" data-idx="${i}">
+        <div class="head">
+          <div><b>${c.category_name}</b><div style="color:var(--muted); font-size:11.5px; margin-top:2px;">${(c.suppliers||[]).length} مورد</div></div>
+          <div style="text-align:left;"><div style="color:var(--accent); font-weight:700;">${c.total_area} قاطع</div><div style="font-size:11px; color:var(--muted);">${c.share_pct_of_total}% من إجمالي المساحة</div></div>
+        </div>
+        <div class="cat-report-detail" id="cat-detail-${i}">
+          ${(c.suppliers||[]).map(s => `<div class="review-row"><span class="k">${s.supplier_name}</span><span class="v">${scoreBar(s.share_pct)} <span style="color:var(--muted); font-size:11px;">(${s.area} قاطع)</span></span></div>`).join('') || '<p style="color:var(--muted); font-size:12px;">لا يوجد.</p>'}
+        </div>
+      </div>`).join('');
+    document.querySelectorAll('.cat-report-row').forEach(row => {
+      row.addEventListener('click', () => {
+        $('cat-detail-' + row.dataset.idx).classList.toggle('open');
+      });
+    });
+  }
+
+  else if(tab === 'turnover'){
+    const { data, error } = await sb.rpc('report_turnover');
+    if(error){ el.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+error.message+'</p>'; return; }
+    if(!data || !data.length){ el.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش بيانات مبيعات متاحة لسه — هتظهر لما توفّر بيانات المبيعات.</p>'; return; }
+    el.innerHTML = `<div class="card" style="padding:0; overflow-x:auto;"><table class="rpt-table">
+      <thead><tr><th>كود</th><th>المورد</th><th>المساحة</th><th>قيمة المبيعات</th><th>مبيعات/قاطع (قيمة)</th><th>كمية المبيعات</th><th>مبيعات/قاطع (كمية)</th></tr></thead>
+      <tbody>${data.map(s => `<tr>
+        <td>${s.supplier_code ?? '—'}</td><td style="font-weight:600;">${s.supplier_name}</td><td>${s.area_parts}</td>
+        <td>${Number(s.total_sales_revenue||0).toFixed(2)}</td>
+        <td style="font-weight:700; color:var(--accent);">${s.sales_per_sqm !== null ? Number(s.sales_per_sqm).toFixed(3) : '—'}</td>
+        <td>${Number(s.total_qty_sold||0).toFixed(0)}</td>
+        <td style="font-weight:700;">${s.qty_per_sqm !== null ? Number(s.qty_per_sqm).toFixed(3) : '—'}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  }
+
+  else if(tab === 'nospace'){
+    const { data, error } = await sb.rpc('report_suppliers_without_space');
+    if(error){ el.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+error.message+'</p>'; return; }
+    if(!data || !data.length){ el.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش موردين نشطين بلا مساحة — أو مفيش بيانات مشتريات متاحة لسه.</p>'; return; }
+    el.innerHTML = `<div class="card" style="padding:0; overflow-x:auto;"><table class="rpt-table">
+      <thead><tr><th>كود</th><th>المورد</th><th>صافي المشتريات</th></tr></thead>
+      <tbody>${data.map(s => `<tr><td>${s.supplier_code ?? '—'}</td><td style="font-weight:600;">${s.supplier_name}</td><td>${Number(s.total_purchase_net_cost).toFixed(2)}</td></tr>`).join('')}</tbody>
+    </table></div>`;
+  }
+}
+
+/* ============ تفاصيل رف واحد (Drill-down) + تعديل مباشر ============ */
+const STATUS_LABELS_MAP = { occupied:'مؤجر', vacant:'فارغ', maintenance:'تحت الصيانة' };
+const STATUS_COLOR_MAP = { occupied:'var(--accent)', vacant:'var(--muted)', maintenance:'var(--amber)' };
+
+async function showRackDetail(rackCode){
+  const el = $('report-content');
+  el.innerHTML = '<p style="color:var(--muted); font-size:13px;">جاري التحميل...</p>';
+  const { data, error } = await sb.rpc('get_rack_parts_grid', { p_rack_code: rackCode });
+  if(error){ el.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+error.message+'</p>'; return; }
+
+  const occCount = data.filter(p => p.status === 'occupied').length;
+  const vendorCount = new Set(data.filter(p => p.supplier_id).map(p => p.supplier_id)).size;
+
+  el.innerHTML = `
+    <a class="menu-back" id="rack-back-map">→ رجوع لخريطة الموقع</a>
+    <div class="card" style="margin-bottom:14px;">
+      <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+        <div>
+          <div style="font-weight:800; font-size:16px; direction:ltr; text-align:right;">${rackCode}</div>
+          <div style="color:var(--muted); font-size:12.5px; margin-top:4px;">${data.length} قاطع — ${vendorCount} مورد</div>
+        </div>
+        <div style="text-align:left;">
+          <div style="color:var(--accent); font-weight:700; font-size:18px;">${data.length ? Math.round(occCount/data.length*100) : 0}%</div>
+          <div style="color:var(--muted); font-size:10.5px;">نسبة الإشغال</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div id="rack-parts-grid"></div>
+      <div id="rack-level-panel"></div>
+    </div>
+    <div id="rack-part-editor"></div>`;
+
+  $('rack-back-map').addEventListener('click', () => {
+    document.querySelectorAll('.report-tab-btn').forEach(b => { b.classList.remove('sel'); b.classList.add('ghost'); });
+    document.querySelector('[data-tab="map"]').classList.add('sel');
+    document.querySelector('[data-tab="map"]').classList.remove('ghost');
+    loadReportTab('map');
+  });
+
+  renderRackPartsGrid(data, rackCode);
+}
+
+/* ============ شبكة القاطع بالشكل المتفق عليه: صف أمامي فوق، صف خلفي تحت، جندولتين طرفيتين ============ */
+function renderRackPartsGrid(data, rackCode){
+  const grid = $('rack-parts-grid');
+  $('rack-level-panel').innerHTML = '';
+
+  const isFreezerB = data.some(p => p.unit_type && (p.unit_type.startsWith('باب') || p.unit_type.startsWith('حوض')));
+  if(isFreezerB){
+    grid.style.cssText = 'display:flex; flex-wrap:wrap; gap:6px; direction:rtl;';
+    grid.innerHTML = '';
+    data.forEach(p => {
+      const chip = document.createElement('div');
+      const color = STATUS_COLOR_MAP[p.status] || 'var(--muted)';
+      chip.className = 'code-chip' + (p.tier === 'premium' ? ' premium' : '');
+      chip.style.minWidth = '84px'; chip.style.cursor = 'pointer'; chip.style.textAlign = 'center';
+      chip.innerHTML = `<span class="c" style="direction:ltr;">${p.part_code}</span><span class="t">${p.unit_type}</span>
+        <span style="display:block; width:7px; height:7px; border-radius:50%; background:${color}; margin:4px auto 0;"></span>`;
+      chip.title = (p.supplier_name || 'فارغ');
+      chip.addEventListener('click', () => openPartEditor(p, rackCode));
+      grid.appendChild(chip);
+    });
+    return;
+  }
+
+  const frontParts = data.filter(p => p.side !== 'back' && !p.is_endcap);
+  const backParts = data.filter(p => p.side === 'back' && !p.is_endcap);
+  const hasBack = backParts.length > 0;
+  const frontEndcap = data.filter(p => p.is_endcap && p.unit_type === 'جندولة أمامية').sort((a,b)=>a.level-b.level);
+  const backEndcap = data.filter(p => p.is_endcap && p.unit_type === 'جندولة خلفية').sort((a,b)=>a.level-b.level);
+
+  const numBoxStyle = 'width:44px; height:44px; display:flex; align-items:center; justify-content:center; border-radius:8px; cursor:pointer; font-size:13px; font-weight:700; background:var(--panel-2); border:1.5px solid var(--border); margin:2px;';
+  const flankStyle = 'width:48px; display:flex; align-items:center; justify-content:center; border-radius:8px; cursor:pointer; font-size:12px; font-weight:700; background:var(--amber-dim); color:var(--amber); border:1.5px solid var(--amber);';
+
+  grid.style.cssText = 'display:flex; align-items:stretch; gap:6px; direction:rtl; overflow-x:auto; padding:4px 0;';
+  grid.innerHTML = '';
+
+  if(frontEndcap.length){
+    const flank = document.createElement('div');
+    flank.style.cssText = flankStyle;
+    flank.textContent = 'أمامية';
+    flank.addEventListener('click', () => showLevelPanel(frontEndcap, 'الجندولة الأمامية', rackCode));
+    grid.appendChild(flank);
+  }
+
+  const colsWrap = document.createElement('div');
+  colsWrap.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
+  const partNums = Array.from(new Set(frontParts.map(p => p.part_num))).sort((a,b) => a-b);
+
+  const frontRow = document.createElement('div');
+  frontRow.style.cssText = 'display:flex;';
+  partNums.forEach(pn => {
+    const cellParts = frontParts.filter(p => p.part_num === pn);
+    const box = document.createElement('div');
+    box.style.cssText = numBoxStyle;
+    box.textContent = pn;
+    box.addEventListener('click', () => showLevelPanel(cellParts, 'قاطع ' + pn + ' — أمامي', rackCode));
+    frontRow.appendChild(box);
+  });
+  colsWrap.appendChild(frontRow);
+
+  if(hasBack){
+    const backRow = document.createElement('div');
+    backRow.style.cssText = 'display:flex;';
+    partNums.forEach(pn => {
+      const cellParts = backParts.filter(p => p.part_num === pn);
+      const box = document.createElement('div');
+      box.style.cssText = numBoxStyle;
+      box.textContent = pn;
+      box.addEventListener('click', () => showLevelPanel(cellParts, 'قاطع ' + pn + ' — خلفي', rackCode));
+      backRow.appendChild(box);
+    });
+    colsWrap.appendChild(backRow);
+  }
+  grid.appendChild(colsWrap);
+
+  if(backEndcap.length){
+    const flank = document.createElement('div');
+    flank.style.cssText = flankStyle;
+    flank.textContent = 'خلفية';
+    flank.addEventListener('click', () => showLevelPanel(backEndcap, 'الجندولة الخلفية', rackCode));
+    grid.appendChild(flank);
+  }
+}
+
+function showLevelPanel(parts, title, rackCode){
+  const panel = $('rack-level-panel');
+  panel.innerHTML = `
+    <div style="margin-top:14px; padding-top:14px; border-top:1px dashed var(--border-strong);">
+      <div style="font-size:12.5px; color:var(--muted); margin-bottom:8px;">${title} — المستويات</div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap;" id="level-chips"></div>
+    </div>`;
+  const wrap = $('level-chips');
+  parts.sort((a,b) => a.level - b.level).forEach(p => {
+    const color = STATUS_COLOR_MAP[p.status] || 'var(--muted)';
+    const chip = document.createElement('div');
+    chip.className = 'code-chip' + (p.tier === 'premium' ? ' premium' : '');
+    chip.style.cursor = 'pointer'; chip.style.textAlign = 'center'; chip.style.minWidth = '90px';
+    chip.innerHTML = `<span class="c" style="direction:ltr;">L0${p.level}</span><span class="t">${p.supplier_name || 'فارغ'}</span>
+      <span style="display:block; width:7px; height:7px; border-radius:50%; background:${color}; margin:4px auto 0;"></span>`;
+    chip.addEventListener('click', () => openPartEditor(p, rackCode));
+    wrap.appendChild(chip);
+  });
+}
+
+function openPartEditor(p, rackCode){
+  const box = $('rack-part-editor');
+  box.innerHTML = `
+    <div class="card" style="margin-top:14px;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+        <div>
+          <div style="font-weight:700; direction:ltr; text-align:right;">${p.part_code}</div>
+          <div style="color:var(--muted); font-size:12px; margin-top:3px;">${p.unit_type}${p.category_name ? ' — ' + p.category_name : ''}</div>
+        </div>
+        <a id="close-part-editor" style="color:var(--muted); cursor:pointer; font-size:13px;">إغلاق ✕</a>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>الحالة</label>
+          <select id="rpe-status">
+            <option value="occupied" ${p.status==='occupied'?'selected':''}>مؤجر</option>
+            <option value="vacant" ${p.status==='vacant'?'selected':''}>فارغ</option>
+            <option value="maintenance" ${p.status==='maintenance'?'selected':''}>تحت الصيانة</option>
+          </select>
+        </div>
+        <div class="field"><label>كود المورد ${p.supplier_code ? '(الحالي: '+p.supplier_code+')' : ''}</label>
+          <input type="number" id="rpe-supplier" placeholder="اتركه فاضي لو مش هتغيّر" style="direction:ltr;">
+        </div>
+        <div class="field"><label>التصنيف الرئيسي</label><select id="rpe-category"><option value="">بدون تصنيف</option></select></div>
+        <div class="field"><label>التصنيف الفرعي</label><select id="rpe-subcategory"><option value="">بدون تصنيف فرعي</option></select></div>
+      </div>
+      <button class="btn small" id="rpe-save">حفظ التعديل</button>
+      <div class="err" id="rpe-err"></div>
+    </div>`;
+
+  loadEditCategoriesFor('rpe-category', 'rpe-subcategory', p.category_id, p.subcategory_id);
+  $('rpe-category').addEventListener('change', (e) => loadEditSubcategoriesFor('rpe-category', 'rpe-subcategory', e.target.value, null));
+
+  $('close-part-editor').addEventListener('click', () => { box.innerHTML = ''; });
+  $('rpe-save').addEventListener('click', async () => {
+    $('rpe-err').style.display = 'none';
+    const status = $('rpe-status').value;
+    const supRaw = $('rpe-supplier').value.trim();
+    const supplierCode = supRaw ? parseInt(supRaw) : null;
+    const categoryId = $('rpe-category').value || null;
+    const subcategoryId = $('rpe-subcategory').value || null;
+    $('rpe-save').disabled = true;
+    const { error } = await sb.rpc('update_part_after_scan', {
+      p_part_code: p.part_code, p_supplier_code: supplierCode, p_status: status, p_notes: null,
+      p_category_id: categoryId, p_subcategory_id: subcategoryId
+    });
+    $('rpe-save').disabled = false;
+    if(error){ $('rpe-err').textContent = error.message; $('rpe-err').style.display = 'block'; return; }
+    showToast('تم الحفظ.');
+    await showRackDetail(rackCode);
+  });
+}
+
+
+
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if(session) await enterApp();
+})();
+
+/* ================= الفروع والطوابق ================= */
+async function loadBranches(){
+  const { data, error } = await sb.from('branches').select('*').order('name');
+  if(error){ showToast('خطأ في تحميل الفروع: ' + error.message, true); return; }
+  const sel = $('f-branch');
+  sel.innerHTML = '<option value="">اختر فرع...</option>' + (data||[]).map(b => `<option value="${b.id}">${b.name} (${b.code})</option>`).join('');
+}
+
+async function loadFloors(branchId){
+  const sel = $('f-floor');
+  if(!branchId){ sel.innerHTML = '<option value="">اختر الفرع الأول...</option>'; return; }
+  const { data, error } = await sb.from('branch_floors').select('*').eq('branch_id', branchId).order('name');
+  if(error){ showToast('خطأ في تحميل الطوابق: ' + error.message, true); return; }
+  sel.innerHTML = (data && data.length)
+    ? data.map(f => `<option value="${f.id}">${f.name} (${f.code})</option>`).join('')
+    : '<option value="">مفيش طوابق — ضيف طابق جديد</option>';
+}
+
+$('f-branch').addEventListener('change', (e) => loadFloors(e.target.value));
+
+$('add-branch-btn').addEventListener('click', () => $('add-branch-box').classList.toggle('show'));
+$('add-floor-btn').addEventListener('click', () => {
+  if(!$('f-branch').value){ showToast('اختار الفرع الأول.', true); return; }
+  $('add-floor-box').classList.toggle('show');
+});
+
+$('save-branch-btn').addEventListener('click', async () => {
+  const code = $('new-branch-code').value.trim().toUpperCase();
+  const name = $('new-branch-name').value.trim();
+  if(!code || !name){ showToast('اكتب كود واسم الفرع.', true); return; }
+  const { data, error } = await sb.from('branches').insert({ code, name }).select().single();
+  if(error){ showToast('فشل حفظ الفرع: ' + error.message, true); return; }
+  await loadBranches();
+  $('f-branch').value = data.id;
+  await loadFloors(data.id);
+  $('add-branch-box').classList.remove('show');
+  $('new-branch-code').value = ''; $('new-branch-name').value = '';
+  showToast('تم إضافة الفرع.');
+});
+
+$('save-floor-btn').addEventListener('click', async () => {
+  const branchId = $('f-branch').value;
+  const code = $('new-floor-code').value.trim().toUpperCase();
+  const name = $('new-floor-name').value.trim();
+  if(!branchId){ showToast('اختار الفرع الأول.', true); return; }
+  if(!code || !name){ showToast('اكتب كود واسم الطابق.', true); return; }
+  const { data, error } = await sb.from('branch_floors').insert({ branch_id: branchId, code, name }).select().single();
+  if(error){ showToast('فشل حفظ الطابق: ' + error.message, true); return; }
+  await loadFloors(branchId);
+  $('f-floor').value = data.id;
+  $('add-floor-box').classList.remove('show');
+  $('new-floor-code').value = ''; $('new-floor-name').value = '';
+  showToast('تم إضافة الطابق.');
+});
+
+/* ================= التصنيف الرئيسي والفرعي ================= */
+async function loadCategories(){
+  const { data, error } = await sb.from('categories').select('*').order('name');
+  if(error){ showToast('خطأ في تحميل التصنيفات: ' + error.message, true); return; }
+  const sel = $('f-category');
+  sel.innerHTML = '<option value="">بدون تصنيف...</option>' + (data||[]).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+}
+
+async function loadSubcategories(categoryId){
+  const sel = $('f-subcategory');
+  if(!categoryId){ sel.innerHTML = '<option value="">اختر التصنيف الرئيسي الأول...</option>'; return; }
+  const { data, error } = await sb.from('subcategories').select('*').eq('category_id', categoryId).order('name');
+  if(error){ showToast('خطأ في تحميل التصنيفات الفرعية: ' + error.message, true); return; }
+  sel.innerHTML = '<option value="">بدون تصنيف فرعي...</option>' + (data && data.length
+    ? data.map(s => `<option value="${s.id}">${s.name}</option>`).join('')
+    : '');
+}
+
+$('f-category').addEventListener('change', (e) => loadSubcategories(e.target.value));
+
+$('add-category-btn').addEventListener('click', () => $('add-category-box').classList.toggle('show'));
+$('add-subcategory-btn').addEventListener('click', () => {
+  if(!$('f-category').value){ showToast('اختار التصنيف الرئيسي الأول.', true); return; }
+  $('add-subcategory-box').classList.toggle('show');
+});
+
+$('save-category-btn').addEventListener('click', async () => {
+  const name = $('new-category-name').value.trim();
+  if(!name){ showToast('اكتب اسم التصنيف.', true); return; }
+  const { data, error } = await sb.from('categories').insert({ name }).select().single();
+  if(error){ showToast('فشل حفظ التصنيف: ' + error.message, true); return; }
+  await loadCategories();
+  $('f-category').value = data.id;
+  await loadSubcategories(data.id);
+  $('add-category-box').classList.remove('show');
+  $('new-category-name').value = '';
+  showToast('تم إضافة التصنيف.');
+});
+
+$('save-subcategory-btn').addEventListener('click', async () => {
+  const categoryId = $('f-category').value;
+  const name = $('new-subcategory-name').value.trim();
+  if(!categoryId){ showToast('اختار التصنيف الرئيسي الأول.', true); return; }
+  if(!name){ showToast('اكتب اسم التصنيف الفرعي.', true); return; }
+  const { data, error } = await sb.from('subcategories').insert({ category_id: categoryId, name }).select().single();
+  if(error){ showToast('فشل حفظ التصنيف الفرعي: ' + error.message, true); return; }
+  await loadSubcategories(categoryId);
+  $('f-subcategory').value = data.id;
+  $('add-subcategory-box').classList.remove('show');
+  $('new-subcategory-name').value = '';
+  showToast('تم إضافة التصنيف الفرعي.');
+});
+
+/* ================= WIZARD NAV ================= */
+function goToStep(n){
+  currentStep = n;
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+  $('step-' + n).classList.add('active');
+  document.querySelectorAll('.step-pill').forEach(p => {
+    const ps = parseInt(p.dataset.step);
+    p.classList.toggle('active', ps === n);
+    p.classList.toggle('done', ps < n);
+  });
+  $('wizard-actions').style.display = (n === 5) ? 'none' : 'flex';
+  $('back-btn').style.display = (n === 1) ? 'none' : 'inline-block';
+  $('next-btn').textContent = (n === 4) ? 'حفظ الرف' : 'التالي';
+}
+
+$('back-btn').addEventListener('click', () => { if(currentStep > 1) goToStep(currentStep - 1); });
+
+document.querySelectorAll('.type-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.type-card').forEach(c => c.classList.remove('sel'));
+    card.classList.add('sel');
+    selectedType = card.dataset.type;
+    selectedSub = null;
+    document.querySelectorAll('.sub-card').forEach(c => c.classList.remove('sel'));
+    $('freezer-sub-wrap').style.display = (selectedType === 'freezer') ? 'block' : 'none';
+
+    const isPallet = (selectedType === 'pallet');
+    $('placement-section').style.display = isPallet ? 'none' : 'block';
+    $('endcaps-section').style.display = isPallet ? 'none' : 'block';
+    $('parts-count-field').style.display = isPallet ? 'none' : 'block';
+    $('levels-note-box').textContent = isPallet
+      ? 'الطبلية مربع واحد بس بينقسم لـ4 أرباع تأجير ثابتة.'
+      : 'كل عمود بينقسم تلقائيًا لـ4 مستويات تأجير ثابتة (ربع/نص/تلات ارباع/كامل).';
+  });
+});
+
+document.querySelectorAll('.sub-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.sub-card').forEach(c => c.classList.remove('sel'));
+    card.classList.add('sel');
+    selectedSub = card.dataset.sub;
+  });
+});
+
+document.querySelectorAll('.pl-card[data-placement]').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.pl-card[data-placement]').forEach(c => c.classList.remove('sel'));
+    card.classList.add('sel');
+    selectedPlacement = card.dataset.placement;
+  });
+});
+
+$('chk-front-endcap').addEventListener('change', () => {
+  $('endcap-front-toggle').classList.toggle('sel', $('chk-front-endcap').checked);
+});
+$('chk-back-endcap').addEventListener('change', () => {
+  $('endcap-back-toggle').classList.toggle('sel', $('chk-back-endcap').checked);
+});
+
+$('next-btn').addEventListener('click', async () => {
+  if(currentStep === 1){
+    if(!selectedType){ showToast('اختار نوع الرف.', true); return; }
+    if(selectedType === 'freezer' && !selectedSub){ showToast('اختار نوع وحدة الثلاجة A أو B.', true); return; }
+    goToStep(2);
+
+  } else if(currentStep === 2){
+    const isPallet = (selectedType === 'pallet');
+    if(!isPallet && !selectedPlacement){ showToast('اختار تصنيف الموضع (حائطي/وسطى).', true); return; }
+    if(!$('f-branch').value){ showToast('اختار الفرع.', true); return; }
+    if(!$('f-floor').value){ showToast('اختار الطابق.', true); return; }
+    if(!isPallet){
+      const parts = parseInt($('f-parts').value);
+      if(!parts || parts < 1){ showToast('اكتب عدد أعمدة/وحدات صحيح.', true); return; }
+    }
+    await generateCodeAndPreview();
+    goToStep(3);
+
+  } else if(currentStep === 3){
+    buildReview();
+    goToStep(4);
+
+  } else if(currentStep === 4){
+    await saveRack();
+  }
+});
+
+async function generateCodeAndPreview(){
+  const { data: code, error: codeErr } = await sb.rpc('generate_next_rack_code', {
+    p_branch_id: $('f-branch').value, p_floor_id: $('f-floor').value, p_rack_type: selectedType
+  });
+  if(codeErr){ showToast('خطأ في توليد الكود: ' + codeErr.message, true); return; }
+  $('f-code').value = code;
+
+  const isPallet = (selectedType === 'pallet');
+  const parts = isPallet ? 1 : parseInt($('f-parts').value);
+  const { data, error } = await sb.rpc('preview_rack_parts', {
+    p_code: code, p_rack_type: selectedType,
+    p_placement: selectedPlacement || 'wall', p_has_front_endcap: isPallet ? false : $('chk-front-endcap').checked, p_has_back_endcap: isPallet ? false : $('chk-back-endcap').checked,
+    p_freezer_subtype: selectedType === 'freezer' ? selectedSub : null, p_parts_count: parts
+  });
+  if(error){ showToast('خطأ في المعاينة: ' + error.message, true); return; }
+
+  generatedParts = (data || []).map(p => ({
+    ...p,
+    tier: p.is_endcap ? 'premium' : 'standard'
+  }));
+  renderCodesGrid();
+}
+
+function renderCodesGrid(){
+  $('prev-count').textContent = generatedParts.length;
+  $('premium-count').textContent = generatedParts.filter(p => p.tier === 'premium').length;
+
+  const grid = $('codes-grid');
+  grid.innerHTML = '';
+
+  function makeChip(p, idx){
+    const chip = document.createElement('div');
+    chip.className = 'code-chip' + (p.tier === 'premium' ? ' premium' : '');
+    chip.innerHTML = `<span class="tier-badge">${p.tier === 'premium' ? '★' : ''}</span><span class="c" style="direction:ltr;">${p.part_code}</span><span class="t">${p.unit_type}</span>`;
+    chip.addEventListener('click', () => {
+      generatedParts[idx].tier = generatedParts[idx].tier === 'premium' ? 'standard' : 'premium';
+      renderCodesGrid();
+    });
+    return chip;
+  }
+
+  // ثلاجة نوع B: تركيبتها مختلفة (8 قواطع فرعية لكل وحدة) — عرض قائمة بسيط مجمّع
+  if(selectedType === 'freezer' && selectedSub === 'B'){
+    grid.style.display = 'grid';
+    grid.style.gridTemplateColumns = 'repeat(auto-fill,minmax(150px,1fr))';
+    grid.style.direction = 'rtl';
+    const endcapParts = generatedParts.filter(p => p.is_endcap);
+    if(endcapParts.length){
+      const header = document.createElement('div');
+      header.style.cssText = 'grid-column:1/-1; font-weight:700; font-size:13px; color:var(--amber); padding-top:6px;';
+      header.textContent = '▸ الطرفان المشتركان';
+      grid.appendChild(header);
+      generatedParts.forEach((p, idx) => { if(p.is_endcap) grid.appendChild(makeChip(p, idx)); });
+    }
+    const hasBothSides = generatedParts.some(p => p.side === 'front') && generatedParts.some(p => p.side === 'back');
+    if(hasBothSides){
+      ['front','back'].forEach(side => {
+        const header = document.createElement('div');
+        header.style.cssText = 'grid-column:1/-1; font-weight:700; font-size:13px; color:var(--accent); margin-top:10px; padding-top:6px; border-top:1px solid var(--border);';
+        header.textContent = side === 'front' ? '▸ قواطع الوجه الأمامي' : '▸ قواطع الوجه الخلفي';
+        grid.appendChild(header);
+        generatedParts.forEach((p, idx) => { if(p.side === side && !p.is_endcap) grid.appendChild(makeChip(p, idx)); });
+      });
+    } else {
+      generatedParts.forEach((p, idx) => { if(!p.is_endcap) grid.appendChild(makeChip(p, idx)); });
+    }
+    return;
+  }
+
+  grid.style.display = 'grid';
+  grid.style.gap = '4px';
+  grid.style.direction = 'rtl';
+
+  const frontParts = generatedParts.filter(p => p.side !== 'back' && !p.is_endcap);
+  const backParts = generatedParts.filter(p => p.side === 'back' && !p.is_endcap);
+  const hasBack = backParts.length > 0;
+  const frontEndcapParts = generatedParts.filter(p => p.is_endcap && p.unit_type === 'جندولة أمامية');
+  const backEndcapParts = generatedParts.filter(p => p.is_endcap && p.unit_type === 'جندولة خلفية');
+  const hasFrontEndcap = frontEndcapParts.length > 0;
+  const hasBackEndcap = backEndcapParts.length > 0;
+
+  const partsCount = Math.max(...generatedParts.filter(p => !p.is_endcap).map(p => p.part_num), 1);
+
+  // كل صف = قاطع واحد بمستوياته الأربعة جنب بعض. عمود أول = اسم القاطع، وباقي الأعمدة = L01..L04
+  grid.style.gridTemplateColumns = `84px repeat(4, minmax(90px, 1fr))`;
+
+  let rowCursor = 1;
+  function rowLabel(text, color){
+    const lbl = document.createElement('div');
+    lbl.style.cssText = `grid-column:1; grid-row:${rowCursor}; display:flex; align-items:center; justify-content:center;
+      font-size:12px; font-weight:700; color:${color||'var(--muted)'}; background:var(--panel-2); border-radius:8px;`;
+    lbl.textContent = text;
+    grid.appendChild(lbl);
+  }
+
+  function makeCell(p, idx, col){
+    const chip = document.createElement('div');
+    chip.className = 'code-chip' + (p.tier === 'premium' ? ' premium' : '');
+    chip.style.gridRow = String(rowCursor);
+    chip.style.gridColumn = String(col);
+    chip.style.display = 'flex'; chip.style.flexDirection = 'column'; chip.style.justifyContent = 'center'; chip.style.alignItems = 'center'; chip.style.textAlign='center';
+    chip.innerHTML = `<span class="tier-badge">${p.tier === 'premium' ? '★' : ''}</span><span class="c" style="direction:ltr;">${p.part_code}</span><span class="t">L0${p.level}</span>`;
+    chip.addEventListener('click', () => {
+      generatedParts[idx].tier = generatedParts[idx].tier === 'premium' ? 'standard' : 'premium';
+      renderCodesGrid();
+    });
+    return chip;
+  }
+
+  function addRowForParts(list, label, color){
+    rowLabel(label, color);
+    list.sort((a,b) => a.level - b.level).forEach((p, i) => {
+      const idx = generatedParts.indexOf(p);
+      grid.appendChild(makeCell(p, idx, 2 + i));
+    });
+    rowCursor++;
+  }
+
+  if(hasFrontEndcap) addRowForParts(frontEndcapParts.slice(), 'أمامية', 'var(--amber)');
+  for(let pos = 1; pos <= partsCount; pos++){
+    addRowForParts(frontParts.filter(p => p.part_num === pos), 'قاطع ' + pos);
+  }
+  if(hasBack){
+    for(let pos = 1; pos <= partsCount; pos++){
+      addRowForParts(backParts.filter(p => p.part_num === pos), 'قاطع ' + pos);
+    }
+  }
+  if(hasBackEndcap) addRowForParts(backEndcapParts.slice(), 'خلفية', 'var(--amber)');
+}
+
+function typeLabel(){
+  if(selectedType === 'shelf') return 'رف عادي';
+  if(selectedType === 'pallet') return 'طبلية';
+  if(selectedType === 'freezer') return 'ثلاجة نوع ' + selectedSub;
+  return '—';
+}
+
+function buildReview(){
+  const branchName = $('f-branch').selectedOptions[0]?.textContent || '—';
+  const floorName = $('f-floor').selectedOptions[0]?.textContent || '—';
+  const categoryName = $('f-category').selectedOptions[0]?.textContent || '—';
+  const subcategoryName = $('f-subcategory').selectedOptions[0]?.textContent || '—';
+  const premiumCount = generatedParts.filter(p => p.tier === 'premium').length;
+  const rows = [
+    ['كود الرف', $('f-code').value],
+    ['النوع', typeLabel()],
+    ['الموضع', selectedPlacement === 'island' ? 'وسطى' : 'حائطي'],
+    ['جندولة أمامية (طرف)', $('chk-front-endcap').checked ? 'موجودة' : 'لا'],
+    ['جندولة خلفية (طرف)', $('chk-back-endcap').checked ? 'موجودة' : 'لا'],
+    ['الفرع', branchName],
+    ['الطابق', floorName],
+    ['التصنيف الرئيسي', categoryName],
+    ['التصنيف الفرعي', subcategoryName],
+    ['القطاع', $('f-section').value || '—'],
+    ['الاتجاه', $('f-orientation').value],
+    ['الأبعاد', `${$('f-width').value || '—'} × ${$('f-depth').value || '—'} سم`],
+    ['عدد القواطع', generatedParts.length],
+    ['قواطع مميزة', premiumCount],
+    ['ملاحظات', $('f-notes').value || '—'],
+  ];
+  $('review-list').innerHTML = rows.map(r =>
+    `<div class="review-row"><span class="k">${r[0]}</span><span class="v">${r[1]}</span></div>`
+  ).join('');
+}
+
+async function saveRack(){
+  $('next-btn').disabled = true;
+  $('next-btn').textContent = 'جاري الحفظ...';
+  const isPallet = (selectedType === 'pallet');
+  const parts = isPallet ? 1 : parseInt($('f-parts').value);
+
+  const { data, error } = await sb.rpc('create_rack_from_parts', {
+    p_code: $('f-code').value,
+    p_rack_type: selectedType,
+    p_placement: selectedPlacement || 'wall',
+    p_has_front_endcap: isPallet ? false : $('chk-front-endcap').checked,
+    p_has_back_endcap: isPallet ? false : $('chk-back-endcap').checked,
+    p_freezer_subtype: selectedType === 'freezer' ? selectedSub : null,
+    p_branch_id: $('f-branch').value,
+    p_floor_id: $('f-floor').value,
+    p_category_id: $('f-category').value || null,
+    p_subcategory_id: $('f-subcategory').value || null,
+    p_section: $('f-section').value || null,
+    p_orientation: $('f-orientation').value,
+    p_width_cm: $('f-width').value ? parseFloat($('f-width').value) : null,
+    p_depth_cm: $('f-depth').value ? parseFloat($('f-depth').value) : null,
+    p_parts_count: parts,
+    p_position_x: null,
+    p_position_y: null,
+    p_notes: $('f-notes').value || null,
+    p_parts: generatedParts
+  });
+
+  $('next-btn').disabled = false;
+  $('next-btn').textContent = 'حفظ الرف';
+
+  if(error){ showToast('فشل الحفظ: ' + error.message, true); return; }
+
+  $('success-detail').textContent = `الرف "${$('f-code').value}" اتحفظ بـ ${generatedParts.length} قاطع.`;
+  renderRack3D(generatedParts, parts, selectedType, selectedSub, $('f-width').value, $('f-depth').value);
+  goToStep(5);
+}
+
+/* ================= رسم الرف ثلاثي الأبعاد — رف فاضي واقعي + تاجات صغيرة للتصنيف ================= */
+function shadeColor(hex, percent){
+  const num = parseInt(hex.slice(1),16), amt = Math.round(2.55*percent);
+  let R = (num>>16)+amt, G = (num>>8 & 0x00FF)+amt, B = (num & 0x0000FF)+amt;
+  R = Math.max(0, Math.min(255,R)); G = Math.max(0, Math.min(255,G)); B = Math.max(0, Math.min(255,B));
+  return '#' + (0x1000000 + R*0x10000 + G*0x100 + B).toString(16).slice(1);
+}
+
+const DEPTH_X = 34, DEPTH_Y = -22;
+const PLANK_TOP = '#f2f3f5', PLANK_FRONT = '#dcdee2', PLANK_SIDE = '#b8bcc2';
+const UPRIGHT_FRONT = '#3a3d44', UPRIGHT_SIDE = '#25272c';
+const TAG_PREMIUM = '#d97706', TAG_STANDARD = '#94a3b8';
+
+function drawDimensionLabel(x1,y1,x2,y2,text){
+  let svg = '';
+  svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--muted)" stroke-width="1"/>`;
+  svg += `<circle cx="${x1}" cy="${y1}" r="2.5" fill="var(--muted)"/><circle cx="${x2}" cy="${y2}" r="2.5" fill="var(--muted)"/>`;
+  const mx = (x1+x2)/2, my = (y1+y2)/2;
+  svg += `<rect x="${mx-24}" y="${my-10}" width="48" height="18" rx="4" fill="#ffffff" stroke="#0d9488" stroke-width="0.5"/>`;
+  svg += `<text x="${mx}" y="${my+4}" text-anchor="middle" font-size="11" fill="var(--muted)">${text}</text>`;
+  return svg;
+}
+
+function drawUpright(x, yTop, yBottom){
+  const w = 7;
+  let svg = '';
+  svg += `<polygon points="${x},${yTop} ${x+DEPTH_X},${yTop+DEPTH_Y} ${x+DEPTH_X},${yBottom+DEPTH_Y} ${x},${yBottom}" fill="${UPRIGHT_SIDE}"/>`;
+  svg += `<rect x="${x}" y="${yTop}" width="${w}" height="${yBottom-yTop}" fill="${UPRIGHT_FRONT}"/>`;
+  return svg;
+}
+
+function drawShelfPlank(x0, y, W){
+  const th = 7, lip = 5;
+  let svg = '';
+  const tR = {x:x0+W, y}, tSR = {x:x0+W+DEPTH_X, y:y+DEPTH_Y}, tSL = {x:x0+DEPTH_X, y:y+DEPTH_Y}, tL = {x:x0, y};
+  svg += `<polygon points="${tL.x},${tL.y} ${tR.x},${tR.y} ${tSR.x},${tSR.y} ${tSL.x},${tSL.y}" fill="${PLANK_TOP}" stroke="#cbd5e1" stroke-width="0.5"/>`;
+  svg += `<rect x="${x0}" y="${y}" width="${W}" height="${th}" fill="${PLANK_FRONT}" stroke="#cbd5e1" stroke-width="0.5"/>`;
+  svg += `<rect x="${x0}" y="${y+th}" width="${W}" height="${lip}" fill="${PLANK_SIDE}"/>`;
+  return svg;
+}
+
+function drawTierTags(x0, W, y, colsCount, tiers){
+  let svg = '';
+  const gap = W / colsCount;
+  for(let c=0;c<colsCount;c++){
+    const cx = x0 + gap*c + gap/2;
+    const isPremium = tiers[c] === 'premium';
+    const w = Math.min(gap*0.55, 20), h = 9;
+    svg += `<rect x="${cx-w/2}" y="${y}" width="${w}" height="${h}" rx="2" fill="${isPremium?TAG_PREMIUM:TAG_STANDARD}" opacity="${isPremium?1:0.55}"/>`;
+  }
+  return svg;
+}
+
+function drawTierTagsBack(x0, W, y, colsCount, tiers){
+  let svg = '';
+  const gap = W / colsCount;
+  const bx0 = x0 + DEPTH_X, by0 = y + DEPTH_Y;
+  for(let c=0;c<colsCount;c++){
+    const cx = bx0 + gap*c + gap/2;
+    const isPremium = tiers[c] === 'premium';
+    const w = Math.min(gap*0.5, 16), h = 8;
+    svg += `<rect x="${cx-w/2}" y="${by0-h/2}" width="${w}" height="${h}" rx="2" fill="${isPremium?TAG_PREMIUM:TAG_STANDARD}" opacity="${isPremium?1:0.5}"/>`;
+  }
+  return svg;
+}
+
+function buildShelfIso(colsCount, frontTierGrid, backTierGrid, widthCm, depthCm, frontEndcapTiers, backEndcapTiers){
+  const colW = Math.max(18, Math.min(38, Math.round(420 / colsCount)));
+  const cellH = 58;
+  const endcapW = 30;
+  const x0 = 30 + (frontEndcapTiers ? endcapW + 14 : 0), y0 = 26;
+  const W = colsCount * colW, H = 4 * cellH;
+
+  let svg = '';
+  svg += drawUpright(x0, y0, y0+H+10);
+  svg += drawUpright(x0+W, y0, y0+H+10);
+
+  for(let l=0; l<4; l++){
+    const yTop = y0 + l*cellH;
+    if(frontTierGrid){
+      const tiersAtLevel = [];
+      for(let c=0;c<colsCount;c++) tiersAtLevel.push(frontTierGrid[c][l]);
+      svg += drawTierTags(x0+4, W-8, yTop + cellH - 26, colsCount, tiersAtLevel);
+    }
+    if(backTierGrid){
+      const tiersAtLevelB = [];
+      for(let c=0;c<colsCount;c++) tiersAtLevelB.push(backTierGrid[c][l]);
+      svg += drawTierTagsBack(x0+4, W-8, yTop + 14, colsCount, tiersAtLevelB);
+    }
+  }
+
+  for(let l=0; l<=4; l++){
+    svg += drawShelfPlank(x0-4, y0 + l*cellH, W+8);
+  }
+
+  // ===== الطرفان المشتركان (جندولة أمامية / خلفية) =====
+  function drawEndcap(ex0, tiers){
+    let s = '';
+    s += drawUpright(ex0, y0, y0+H+10);
+    for(let l=0; l<4; l++){
+      const fill = tiers[l] === 'premium' ? TAG_PREMIUM : TAG_STANDARD;
+      s += `<rect x="${ex0+3}" y="${y0+l*cellH+6}" width="${endcapW-6}" height="${cellH-12}" rx="3" fill="${fill}" opacity="${tiers[l]==='premium'?0.9:0.45}" stroke="var(--border-strong)" stroke-width="1"/>`;
+    }
+    return s;
+  }
+  if(frontEndcapTiers){
+    const ex0 = x0 - endcapW - 14;
+    svg += drawEndcap(ex0, frontEndcapTiers);
+    svg += `<text x="${ex0+endcapW/2}" y="${y0+H+40}" text-anchor="middle" font-size="11" fill="var(--muted)">أمامية</text>`;
+  }
+  if(backEndcapTiers){
+    const ex0 = x0 + W + 14;
+    svg += drawEndcap(ex0, backEndcapTiers);
+    svg += `<text x="${ex0+endcapW/2}" y="${y0+H+40}" text-anchor="middle" font-size="11" fill="var(--muted)">خلفية</text>`;
+  }
+
+  let dimBottom = y0 + H + 10;
+  if(widthCm){
+    svg += drawDimensionLabel(x0, dimBottom+34, x0+W, dimBottom+34, widthCm+' سم');
+  }
+  if(depthCm){
+    svg += drawDimensionLabel(x0+W+8, y0+H, x0+W+8+DEPTH_X, y0+H+DEPTH_Y, depthCm+' سم');
+  }
+
+  const rightExtra = backEndcapTiers ? (endcapW + 14) : 0;
+  const totalW = x0 + W + DEPTH_X + 60 + rightExtra;
+  const totalH = y0 + H + 24 - DEPTH_Y + (widthCm ? 46 : 12);
+  return `<svg width="${totalW}" height="${totalH}" viewBox="0 0 ${totalW} ${totalH}">${svg}</svg>`;
+}
+
+function buildFreezerBIso(unitsCount, tierByUnit){
+  const cellW = Math.max(48, Math.min(80, Math.round(520 / unitsCount)));
+  const doorH = 74, basinH = 40;
+  const x0 = 30, y0 = 26;
+  const W = unitsCount * cellW;
+
+  let svg = '';
+  svg += drawUpright(x0, y0, y0+doorH+basinH+10);
+  svg += drawUpright(x0+W, y0, y0+doorH+basinH+10);
+
+  for(let u=0; u<unitsCount; u++){
+    const ux = x0 + u*cellW;
+    const t = tierByUnit[u];
+    svg += `<rect x="${ux+3}" y="${y0}" width="${cellW/2-8}" height="${doorH}" fill="none" stroke="${UPRIGHT_FRONT}" stroke-width="1.4"/>`;
+    svg += `<rect x="${ux+cellW/2+5}" y="${y0}" width="${cellW/2-8}" height="${doorH}" fill="none" stroke="${UPRIGHT_FRONT}" stroke-width="1.4"/>`;
+    svg += `<rect x="${ux+8}" y="${y0+doorH*0.42}" width="${cellW/2-18}" height="7" rx="2" fill="${t['D11']==='premium'?TAG_PREMIUM:TAG_STANDARD}" opacity="${t['D11']==='premium'?1:0.55}"/>`;
+    svg += `<rect x="${ux+8}" y="${y0+doorH*0.8}" width="${cellW/2-18}" height="7" rx="2" fill="${t['D12']==='premium'?TAG_PREMIUM:TAG_STANDARD}" opacity="${t['D12']==='premium'?1:0.55}"/>`;
+    svg += `<rect x="${ux+cellW/2+10}" y="${y0+doorH*0.42}" width="${cellW/2-18}" height="7" rx="2" fill="${t['D21']==='premium'?TAG_PREMIUM:TAG_STANDARD}" opacity="${t['D21']==='premium'?1:0.55}"/>`;
+    svg += `<rect x="${ux+cellW/2+10}" y="${y0+doorH*0.8}" width="${cellW/2-18}" height="7" rx="2" fill="${t['D22']==='premium'?TAG_PREMIUM:TAG_STANDARD}" opacity="${t['D22']==='premium'?1:0.55}"/>`;
+
+    const basinY = y0 + doorH + 8;
+    svg += `<rect x="${ux+4}" y="${basinY}" width="${cellW-8}" height="${basinH}" fill="none" stroke="${UPRIGHT_FRONT}" stroke-width="1.4"/>`;
+    const slotW = (cellW-8)/4;
+    for(let s=0;s<4;s++){
+      const key = 'B'+(s+1);
+      svg += `<rect x="${ux+4+s*slotW+4}" y="${basinY+basinH/2-4}" width="${slotW-8}" height="8" rx="2" fill="${t[key]==='premium'?TAG_PREMIUM:TAG_STANDARD}" opacity="${t[key]==='premium'?1:0.55}"/>`;
+    }
+  }
+
+  svg += drawShelfPlank(x0-4, y0+doorH+8+basinH, W+8);
+
+  const totalW = x0 + W + DEPTH_X + 24;
+  const totalH = y0 + doorH + basinH + 40;
+  return `<svg width="${totalW}" height="${totalH}" viewBox="0 0 ${totalW} ${totalH}">${svg}</svg>`;
+}
+
+function renderRack3D(parts, partsCount, rackType, freezerSubtype, widthCm, depthCm){
+  const wrap = $('rack3d-wrap');
+  wrap.innerHTML = '';
+
+  const frontParts = parts.filter(p => p.side !== 'back' && !p.is_endcap);
+  const backParts = parts.filter(p => p.side === 'back' && !p.is_endcap);
+  const hasBack = backParts.length > 0;
+  const hasFrontEndcap = parts.some(p => p.is_endcap && p.unit_type === 'جندولة أمامية');
+  const hasBackEndcap = parts.some(p => p.is_endcap && p.unit_type === 'جندولة خلفية');
+
+  function isPremiumAt(list, pos){
+    return list.some(p => p.part_num === pos && p.tier === 'premium');
+  }
+
+  const boxW = 64, boxH = 54;
+  function makeBox(label, premium){
+    const d = document.createElement('div');
+    const bg = premium ? 'var(--amber-dim)' : 'var(--panel-2)';
+    const bc = premium ? 'var(--amber)' : 'var(--border)';
+    const col = premium ? 'var(--amber)' : 'var(--text)';
+    d.style.cssText = `width:${boxW}px; height:${boxH}px; display:flex; align-items:center; justify-content:center;
+      border:1.5px solid ${bc}; background:${bg}; color:${col}; font-size:12px; font-weight:${premium?'700':'500'}; border-radius:6px;`;
+    d.textContent = label;
+    return d;
+  }
+  function makeLabel(text){
+    const d = document.createElement('div');
+    d.style.cssText = `width:56px; height:${boxH}px; display:flex; align-items:center; justify-content:center;
+      font-size:11.5px; font-weight:700; color:var(--muted); background:var(--panel); border-radius:6px;`;
+    d.textContent = text;
+    return d;
+  }
+
+  const isSimpleCase = !hasBack && !hasFrontEndcap && !hasBackEndcap;
+
+  const table = document.createElement('div');
+
+  if(isSimpleCase){
+    table.style.cssText = 'display:inline-flex; gap:5px; direction:rtl;';
+    for(let c=1; c<=partsCount; c++){
+      table.appendChild(makeBox(String(c), isPremiumAt(frontParts, c)));
+    }
+  } else {
+    table.style.cssText = 'display:inline-flex; flex-direction:column; gap:5px; direction:rtl;';
+
+    function addRow(label, boxes){
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex; gap:5px; align-items:center;';
+      row.appendChild(makeLabel(label));
+      boxes.forEach(b => row.appendChild(b));
+      table.appendChild(row);
+    }
+
+    if(hasFrontEndcap){
+      addRow('أمامية', [makeBox('طرف أمامي', true)]);
+    }
+    for(let c=1; c<=partsCount; c++){
+      const boxes = hasBack
+        ? [makeBox('أمامي', isPremiumAt(frontParts, c)), makeBox('خلفي', isPremiumAt(backParts, c))]
+        : [makeBox(String(c), isPremiumAt(frontParts, c))];
+      addRow('قاطع ' + c, boxes);
+    }
+    if(hasBackEndcap){
+      addRow('خلفية', [makeBox('طرف خلفي', true)]);
+    }
+  }
+
+  const scrollWrap = document.createElement('div');
+  scrollWrap.style.cssText = 'overflow-x:auto; max-width:100%; padding:10px 0; display:flex; justify-content:center;';
+  scrollWrap.appendChild(table);
+
+  const label = document.createElement('div');
+  label.style.cssText = 'font-size:12.5px; color:var(--muted); margin-top:10px; font-weight:600;';
+  label.textContent = isSimpleCase ? 'صف القواطع' : (hasBack ? 'كل صف = قاطع واحد، الأمامي والخلفي جنب بعض — نفس الرف' : 'كل صف = قاطع واحد');
+
+  const box = document.createElement('div');
+  box.style.textAlign = 'center';
+  box.appendChild(scrollWrap);
+  box.appendChild(label);
+  wrap.appendChild(box);
+}
+
+$('restart-btn').addEventListener('click', () => {
+  document.querySelectorAll('.type-card, .sub-card, .pl-card').forEach(c => c.classList.remove('sel'));
+  selectedType = null; selectedSub = null; selectedPlacement = null; generatedParts = [];
+  $('freezer-sub-wrap').style.display = 'none';
+  $('chk-front-endcap').checked = false; $('endcap-front-toggle').classList.remove('sel');
+  $('chk-back-endcap').checked = false; $('endcap-back-toggle').classList.remove('sel');
+  ['f-section','f-width','f-depth','f-parts','f-notes'].forEach(id => $(id).value = '');
+  $('f-category').value = ''; loadSubcategories('');
+  $('f-code').value = '';
+  $('placement-section').style.display = 'block';
+  $('endcaps-section').style.display = 'block';
+  $('parts-count-field').style.display = 'block';
+  goToStep(1);
+});
+
+/* ============ تطبيق مسح الباركود ============ */
+let currentPartCode = null;
+let scanReadOnly = false;
+let qrScanner = null;
+
+function scanShowPage(id){
+  document.querySelectorAll('.scan-page').forEach(p => p.classList.remove('active'));
+  $(id).classList.add('active');
+  if(id !== 'page-scan' && qrScanner){
+    qrScanner.stop().catch(()=>{});
+    qrScanner = null;
+  }
+}
+document.querySelectorAll('#scan-app .back').forEach(b => b.addEventListener('click', () => scanShowPage(b.dataset.goto)));
+
+$('go-scan').addEventListener('click', () => { scanShowPage('page-scan'); startScanner(); });
+$('go-manual').addEventListener('click', () => { scanShowPage('page-scan'); $('manual-code').focus(); });
+
+function startScanner(){
+  try{
+    qrScanner = new Html5Qrcode('qr-reader');
+    qrScanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: 220 },
+      (decodedText) => { lookupPart(decodedText.trim()); },
+      () => {}
+    ).catch(() => { showToast('تعذّر تشغيل الكاميرا — استخدم البحث اليدوي.', true); });
+  }catch(e){ showToast('الكاميرا غير متاحة — استخدم البحث اليدوي.', true); }
+}
+
+$('manual-search-btn').addEventListener('click', () => {
+  const code = $('manual-code').value.trim();
+  if(!code){ showToast('اكتب كود القاطع.', true); return; }
+  lookupPart(code);
+});
+
+async function lookupPart(code){
+  const { data, error } = await sb.rpc('get_part_details', { p_part_code: code });
+  if(error || !data || !data.length){
+    showToast('الكود غير موجود: ' + code, true);
+    return;
+  }
+  const p = data[0];
+  currentPartCode = p.part_code;
+
+  $('d-code').textContent = p.part_code;
+  $('d-tier').textContent = p.tier === 'premium' ? '★ موقع مميز' : 'موقع عادي';
+  $('d-tier').className = 'code-tier ' + p.tier;
+
+  const statusMap = { occupied:'مؤجر', vacant:'فارغ', maintenance:'تحت الصيانة' };
+  const dotClass = { occupied:'occupied', vacant:'vacant', maintenance:'maintenance' }[p.status] || 'vacant';
+  $('d-status').innerHTML = `<span class="status-dot ${dotClass}"></span>${statusMap[p.status] || p.status}`;
+
+  $('d-unittype').textContent = p.unit_type + (p.side ? ' — ' + (p.side==='front'?'أمامي':'خلفي') : '') + (p.is_endcap ? ' (طرف مشترك)' : '');
+  $('d-rack').textContent = `${p.rack_code} (${p.rack_type === 'shelf' ? 'رف عادي' : p.rack_type === 'pallet' ? 'طبلية' : 'ثلاجة ' + (p.freezer_subtype||'')})`;
+  $('d-branch').textContent = `${p.branch_name || '—'} / ${p.floor_name || '—'}`;
+  $('d-supplier').textContent = p.supplier_name ? `${p.supplier_name} (${p.supplier_code})` : 'لا يوجد مورد';
+
+  if(p.rental_value !== null && p.rental_value !== undefined){
+    $('d-rental-row').style.display = 'flex';
+    $('d-rental').textContent = p.rental_value + ' ريال';
+  } else {
+    $('d-rental-row').style.display = 'none';
+  }
+
+  $('d-contract').textContent = (p.contract_start && p.contract_end) ? `${p.contract_start} → ${p.contract_end}` : '—';
+  $('d-notes').textContent = p.notes || '—';
+  $('d-category').textContent = p.category_name ? (p.category_name + (p.subcategory_name ? ' ← ' + p.subcategory_name : '')) : 'بدون تصنيف';
+
+  $('e-status').value = p.status;
+  $('e-supplier-code').value = '';
+  $('e-notes').value = p.notes || '';
+  await loadEditCategories(p.category_id, p.subcategory_id);
+  $('go-edit').style.display = scanReadOnly ? 'none' : 'block';
+
+  scanShowPage('page-details');
+}
+
+async function loadEditCategoriesFor(catId, subId, selectedCategoryId, selectedSubcategoryId){
+  const { data: cats } = await sb.from('categories').select('*').order('name');
+  const catSel = $(catId);
+  catSel.innerHTML = '<option value="">بدون تصنيف</option>' + (cats||[]).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  catSel.value = selectedCategoryId || '';
+  await loadEditSubcategoriesFor(catId, subId, selectedCategoryId, selectedSubcategoryId);
+}
+
+async function loadEditSubcategoriesFor(catId, subId, categoryId, selectedSubcategoryId){
+  const subSel = $(subId);
+  if(!categoryId){ subSel.innerHTML = '<option value="">بدون تصنيف فرعي</option>'; return; }
+  const { data: subs } = await sb.from('subcategories').select('*').eq('category_id', categoryId).order('name');
+  subSel.innerHTML = '<option value="">بدون تصنيف فرعي</option>' + (subs||[]).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  subSel.value = selectedSubcategoryId || '';
+}
+
+async function loadEditCategories(selectedCategoryId, selectedSubcategoryId){
+  await loadEditCategoriesFor('e-category', 'e-subcategory', selectedCategoryId, selectedSubcategoryId);
+}
+async function loadEditSubcategories(categoryId, selectedSubcategoryId){
+  await loadEditSubcategoriesFor('e-category', 'e-subcategory', categoryId, selectedSubcategoryId);
+}
+
+$('e-category').addEventListener('change', (e) => loadEditSubcategories(e.target.value, null));
+
+$('go-edit').addEventListener('click', () => { if(!scanReadOnly) scanShowPage('page-edit'); });
+
+$('save-edit-btn').addEventListener('click', async () => {
+  $('edit-err').style.display = 'none';
+  const status = $('e-status').value;
+  const supplierCodeRaw = $('e-supplier-code').value.trim();
+  const supplierCode = supplierCodeRaw ? parseInt(supplierCodeRaw) : null;
+  const notes = $('e-notes').value;
+  const categoryId = $('e-category').value || null;
+  const subcategoryId = $('e-subcategory').value || null;
+
+  $('save-edit-btn').disabled = true;
+  const { data, error } = await sb.rpc('update_part_after_scan', {
+    p_part_code: currentPartCode, p_supplier_code: supplierCode, p_status: status, p_notes: notes,
+    p_category_id: categoryId, p_subcategory_id: subcategoryId
+  });
+  $('save-edit-btn').disabled = false;
+
+  if(error){
+    $('edit-err').textContent = error.message; $('edit-err').style.display = 'block';
+    return;
+  }
+  showToast('تم حفظ التعديل.');
+  await lookupPart(currentPartCode);
+});
+
+$('go-history').addEventListener('click', async () => {
+  scanShowPage('page-history');
+  $('history-list').innerHTML = '<p style="color:var(--muted); font-size:13px;">جاري التحميل...</p>';
+  const { data, error } = await sb.rpc('get_part_history', { p_part_code: currentPartCode });
+  if(error){ $('history-list').innerHTML = '<p style="color:var(--danger); font-size:13px;">تعذّر تحميل السجل.</p>'; return; }
+  if(!data || !data.length){ $('history-list').innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش سجل تعديلات لسه.</p>'; return; }
+
+  const labelMap = { create:'إنشاء', edit:'تعديل', end:'إنهاء' };
+  $('history-list').innerHTML = data.map(h => `
+    <div class="hist-item">
+      <span class="badge ${h.action}">${labelMap[h.action] || h.action}</span>
+      ${h.field_changed ? `${h.field_changed}: ${h.old_value || '—'} → ${h.new_value || '—'}` : 'إنشاء القاطع'}
+      <div class="meta">${h.changed_by_name} · ${new Date(h.changed_at).toLocaleString('ar-EG')}</div>
+    </div>
+  `).join('');
+});
+
+$('scan-back-menu').addEventListener('click', () => goToSection('dashboard-home'));
+
+</script>
+</body>
+</html>
