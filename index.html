@@ -1748,7 +1748,7 @@ function renderRackPartsGrid(data, rackCode){
 }
 
 function renderFreezerBColumns(data, rackCode, grid){
-  grid.style.cssText = 'display:flex; flex-wrap:wrap; gap:8px; direction:rtl;';
+  grid.style.cssText = 'display:flex; flex-wrap:wrap; gap:10px; direction:rtl;';
   grid.innerHTML = '';
 
   const frontEndcap = data.filter(p => p.is_endcap && p.unit_type === 'جندولة أمامية').sort((a,b)=>a.level-b.level);
@@ -1756,44 +1756,86 @@ function renderFreezerBColumns(data, rackCode, grid){
   const columnParts = data.filter(p => !p.is_endcap);
   const partNums = Array.from(new Set(columnParts.map(p => p.part_num))).sort((a,b) => a-b);
 
+  function dotColor(p){
+    if(!p) return 'var(--border)';
+    if(p.status === 'occupied') return 'var(--success)';
+    if(p.status === 'maintenance') return 'var(--amber)';
+    return 'var(--panel)';
+  }
   function aggDot(parts){
     if(parts.some(p => p.status === 'occupied')) return 'var(--success)';
     if(parts.some(p => p.status === 'maintenance')) return 'var(--amber)';
     return 'var(--muted)';
   }
 
-  function makeFreezerCard(label, parts, onClick, isEndcapCard){
+  function makeEndcapCard(label, parts){
     const card = document.createElement('div');
     const anyPremium = parts.some(p => p.tier === 'premium');
-    card.style.cssText = `min-width:${isEndcapCard?'96px':'104px'}; padding:10px 12px; border-radius:10px; cursor:pointer; text-align:center;
+    card.style.cssText = `min-width:96px; padding:10px 12px; border-radius:12px; cursor:pointer; text-align:center;
       background:var(--panel-2); border:1.5px solid ${anyPremium ? 'var(--amber)' : 'var(--border)'};`;
-    card.innerHTML = `<div style="font-weight:700; font-size:13px; margin-bottom:8px;">${label}</div>`;
-    if(isEndcapCard){
-      const dot = aggDot(parts);
-      card.innerHTML += `<span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${dot};"></span>`;
-    } else {
-      const doors = parts.filter(p => p.unit_type.startsWith('باب'));
-      const basins = parts.filter(p => p.unit_type.startsWith('حوض'));
-      card.innerHTML += `
-        <div style="display:flex; gap:5px; justify-content:center;">
-          <span style="font-size:10.5px; padding:3px 8px; border-radius:6px; background:var(--panel); display:flex; align-items:center; gap:4px;">باب <span style="width:6px; height:6px; border-radius:50%; background:${aggDot(doors)};"></span></span>
-          <span style="font-size:10.5px; padding:3px 8px; border-radius:6px; background:var(--panel); display:flex; align-items:center; gap:4px;">حوض <span style="width:6px; height:6px; border-radius:50%; background:${aggDot(basins)};"></span></span>
-        </div>`;
-    }
-    card.addEventListener('click', () => onClick(parts, label, rackCode));
+    card.innerHTML = `<div style="font-weight:700; font-size:13px; margin-bottom:8px;">${label}</div>
+      <span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${aggDot(parts)};"></span>`;
+    card.addEventListener('click', () => showLevelPanel(parts, label, rackCode));
     return card;
   }
 
-  if(frontEndcap.length) grid.appendChild(makeFreezerCard('أمامية', frontEndcap, showLevelPanel, true));
-  partNums.forEach(pn => {
-    const parts = columnParts.filter(p => p.part_num === pn).sort((a,b) => {
-      const aDoor = a.unit_type.startsWith('باب'), bDoor = b.unit_type.startsWith('باب');
-      if(aDoor !== bDoor) return aDoor ? -1 : 1;
-      return a.part_code.localeCompare(b.part_code);
+  function miniCell(part, w, h){
+    const cell = document.createElement('div');
+    cell.style.cssText = `width:${w}px; height:${h}px; background:${dotColor(part)}; border:1px solid var(--border-strong);
+      border-radius:4px; cursor:pointer; flex-shrink:0;`;
+    if(part && part.tier === 'premium') cell.style.boxShadow = 'inset 0 0 0 1.5px var(--amber)';
+    cell.title = part ? (part.part_code + ' — ' + (part.supplier_name || 'فارغ')) : '';
+    if(part){
+      cell.addEventListener('click', (e) => { e.stopPropagation(); openPartEditor(part, rackCode); });
+    }
+    return cell;
+  }
+
+  function makeColumnCard(pn, parts){
+    const doors = parts.filter(p => p.unit_type.startsWith('باب'));
+    const basins = parts.filter(p => p.unit_type.startsWith('حوض')).sort((a,b) => a.part_code.localeCompare(b.part_code));
+
+    const doorMap = {};
+    doors.forEach(p => {
+      const m = p.unit_type.match(/باب\s*(\d+)\s*-\s*جزء\s*(\d+)/);
+      if(m) doorMap[m[1]+'-'+m[2]] = p;
     });
-    grid.appendChild(makeFreezerCard('قاطع ' + pn, parts, showLevelPanel, false));
+    const doorNums = Array.from(new Set(doors.map(p => (p.unit_type.match(/باب\s*(\d+)/)||[])[1]).filter(Boolean))).sort();
+
+    const card = document.createElement('div');
+    const anyPremium = parts.some(p => p.tier === 'premium');
+    card.style.cssText = `padding:10px; border-radius:12px; background:var(--panel-2); border:1.5px solid ${anyPremium ? 'var(--amber)' : 'var(--border)'};`;
+
+    const header = document.createElement('div');
+    header.style.cssText = 'font-weight:700; font-size:12.5px; margin-bottom:7px; cursor:pointer; text-align:center;';
+    header.textContent = 'قاطع ' + pn;
+    header.addEventListener('click', () => showLevelPanel(parts, 'قاطع ' + pn, rackCode));
+    card.appendChild(header);
+
+    const doorsRow = document.createElement('div');
+    doorsRow.style.cssText = 'display:flex; gap:3px; margin-bottom:4px;';
+    doorNums.forEach(dn => {
+      const doorBox = document.createElement('div');
+      doorBox.style.cssText = 'display:flex; flex-direction:column; gap:2px; border:1px dashed var(--border-strong); border-radius:6px; padding:3px;';
+      doorBox.appendChild(miniCell(doorMap[dn+'-1'], 30, 13));
+      doorBox.appendChild(miniCell(doorMap[dn+'-2'], 30, 13));
+      doorsRow.appendChild(doorBox);
+    });
+    card.appendChild(doorsRow);
+
+    const basinRow = document.createElement('div');
+    basinRow.style.cssText = 'display:flex; gap:2px; border:1px dashed var(--border-strong); border-radius:6px; padding:3px;';
+    basins.forEach(p => basinRow.appendChild(miniCell(p, 15, 13)));
+    card.appendChild(basinRow);
+
+    return card;
+  }
+
+  if(frontEndcap.length) grid.appendChild(makeEndcapCard('أمامية', frontEndcap));
+  partNums.forEach(pn => {
+    grid.appendChild(makeColumnCard(pn, columnParts.filter(p => p.part_num === pn)));
   });
-  if(backEndcap.length) grid.appendChild(makeFreezerCard('خلفية', backEndcap, showLevelPanel, true));
+  if(backEndcap.length) grid.appendChild(makeEndcapCard('خلفية', backEndcap));
 }
 
 function showLevelPanel(parts, title, rackCode){
@@ -2747,42 +2789,92 @@ async function renderGroupDetails(rackCode, filterPartNum, filterSide, doShowPag
   if(isFullRack){
     const isFreezerB = data.some(p => p.unit_type && (p.unit_type.startsWith('باب') || p.unit_type.startsWith('حوض')));
     if(isFreezerB){
-      grid.style.cssText = 'display:flex; flex-wrap:wrap; gap:8px;';
+      grid.style.cssText = 'display:flex; flex-wrap:wrap; gap:10px;';
       const frontEndcap = data.filter(p => p.is_endcap && p.unit_type === 'جندولة أمامية').sort((a,b)=>a.level-b.level);
       const backEndcap = data.filter(p => p.is_endcap && p.unit_type === 'جندولة خلفية').sort((a,b)=>a.level-b.level);
       const columnParts = data.filter(p => !p.is_endcap);
       const partNums = Array.from(new Set(columnParts.map(p => p.part_num))).sort((a,b) => a-b);
+
+      function dotColor(p){
+        if(!p) return 'var(--border)';
+        if(p.status === 'occupied') return 'var(--success)';
+        if(p.status === 'maintenance') return 'var(--amber)';
+        return 'var(--panel)';
+      }
       function aggDot(parts){
         if(parts.some(p => p.status === 'occupied')) return 'var(--success)';
         if(parts.some(p => p.status === 'maintenance')) return 'var(--amber)';
         return 'var(--muted)';
       }
-      function makeFreezerCard(label, parts, isEndcapCard, onClick){
+      function miniCell(part, w, h){
+        const cell = document.createElement('div');
+        cell.style.cssText = `width:${w}px; height:${h}px; background:${dotColor(part)}; border:1px solid var(--border-strong);
+          border-radius:4px; cursor:pointer; flex-shrink:0;`;
+        if(part && part.tier === 'premium') cell.style.boxShadow = 'inset 0 0 0 1.5px var(--amber)';
+        if(part){
+          cell.addEventListener('click', (e) => {
+            e.stopPropagation();
+            detailsBackTarget='page-group'; detailsBackContext={rackCode, part_num:null, side:null};
+            renderPartDetails(part.part_code);
+          });
+        }
+        return cell;
+      }
+      function makeEndcapCard(label, parts){
         const card = document.createElement('div');
         const anyPremium = parts.some(p => p.tier === 'premium');
-        card.style.cssText = `min-width:${isEndcapCard?'96px':'104px'}; padding:10px 12px; border-radius:10px; cursor:pointer; text-align:center;
+        card.style.cssText = `min-width:96px; padding:10px 12px; border-radius:12px; cursor:pointer; text-align:center;
           background:var(--panel-2); border:1.5px solid ${anyPremium ? 'var(--amber)' : 'var(--border)'};`;
-        card.innerHTML = `<div style="font-weight:700; font-size:13px; margin-bottom:8px;">${label}</div>`;
-        if(isEndcapCard){
-          card.innerHTML += `<span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${aggDot(parts)};"></span>`;
-        } else {
-          const doors = parts.filter(p => p.unit_type.startsWith('باب'));
-          const basins = parts.filter(p => p.unit_type.startsWith('حوض'));
-          card.innerHTML += `
-            <div style="display:flex; gap:5px; justify-content:center;">
-              <span style="font-size:10.5px; padding:3px 8px; border-radius:6px; background:var(--panel); display:flex; align-items:center; gap:4px;">باب <span style="width:6px; height:6px; border-radius:50%; background:${aggDot(doors)};"></span></span>
-              <span style="font-size:10.5px; padding:3px 8px; border-radius:6px; background:var(--panel); display:flex; align-items:center; gap:4px;">حوض <span style="width:6px; height:6px; border-radius:50%; background:${aggDot(basins)};"></span></span>
-            </div>`;
-        }
-        card.addEventListener('click', onClick);
+        card.innerHTML = `<div style="font-weight:700; font-size:13px; margin-bottom:8px;">${label}</div>
+          <span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${aggDot(parts)};"></span>`;
+        card.addEventListener('click', () => {
+          detailsBackTarget='page-group'; detailsBackContext={rackCode, part_num:null, side:null};
+          renderPartDetails(parts[0].part_code);
+        });
         return card;
       }
-      if(frontEndcap.length) grid.appendChild(makeFreezerCard('أمامية', frontEndcap, true, () => { detailsBackTarget='page-group'; detailsBackContext={rackCode, part_num:null, side:null}; renderPartDetails(frontEndcap[0].part_code); }));
-      partNums.forEach(pn => {
-        const parts = columnParts.filter(p => p.part_num === pn);
-        grid.appendChild(makeFreezerCard('قاطع ' + pn, parts, false, () => renderGroupDetails(rackCode, pn, null, true)));
-      });
-      if(backEndcap.length) grid.appendChild(makeFreezerCard('خلفية', backEndcap, true, () => { detailsBackTarget='page-group'; detailsBackContext={rackCode, part_num:null, side:null}; renderPartDetails(backEndcap[0].part_code); }));
+      function makeColumnCard(pn, parts){
+        const doors = parts.filter(p => p.unit_type.startsWith('باب'));
+        const basins = parts.filter(p => p.unit_type.startsWith('حوض')).sort((a,b) => a.part_code.localeCompare(b.part_code));
+        const doorMap = {};
+        doors.forEach(p => {
+          const m = p.unit_type.match(/باب\s*(\d+)\s*-\s*جزء\s*(\d+)/);
+          if(m) doorMap[m[1]+'-'+m[2]] = p;
+        });
+        const doorNums = Array.from(new Set(doors.map(p => (p.unit_type.match(/باب\s*(\d+)/)||[])[1]).filter(Boolean))).sort();
+
+        const card = document.createElement('div');
+        const anyPremium = parts.some(p => p.tier === 'premium');
+        card.style.cssText = `padding:10px; border-radius:12px; background:var(--panel-2); border:1.5px solid ${anyPremium ? 'var(--amber)' : 'var(--border)'};`;
+
+        const header = document.createElement('div');
+        header.style.cssText = 'font-weight:700; font-size:12.5px; margin-bottom:7px; cursor:pointer; text-align:center;';
+        header.textContent = 'قاطع ' + pn;
+        header.addEventListener('click', () => renderGroupDetails(rackCode, pn, null, true));
+        card.appendChild(header);
+
+        const doorsRow = document.createElement('div');
+        doorsRow.style.cssText = 'display:flex; gap:3px; margin-bottom:4px;';
+        doorNums.forEach(dn => {
+          const doorBox = document.createElement('div');
+          doorBox.style.cssText = 'display:flex; flex-direction:column; gap:2px; border:1px dashed var(--border-strong); border-radius:6px; padding:3px;';
+          doorBox.appendChild(miniCell(doorMap[dn+'-1'], 30, 13));
+          doorBox.appendChild(miniCell(doorMap[dn+'-2'], 30, 13));
+          doorsRow.appendChild(doorBox);
+        });
+        card.appendChild(doorsRow);
+
+        const basinRow = document.createElement('div');
+        basinRow.style.cssText = 'display:flex; gap:2px; border:1px dashed var(--border-strong); border-radius:6px; padding:3px;';
+        basins.forEach(p => basinRow.appendChild(miniCell(p, 15, 13)));
+        card.appendChild(basinRow);
+
+        return card;
+      }
+
+      if(frontEndcap.length) grid.appendChild(makeEndcapCard('أمامية', frontEndcap));
+      partNums.forEach(pn => grid.appendChild(makeColumnCard(pn, columnParts.filter(p => p.part_num === pn))));
+      if(backEndcap.length) grid.appendChild(makeEndcapCard('خلفية', backEndcap));
     } else {
       const frontParts = data.filter(p => p.side !== 'back' && !p.is_endcap);
       const backParts = data.filter(p => p.side === 'back' && !p.is_endcap);
