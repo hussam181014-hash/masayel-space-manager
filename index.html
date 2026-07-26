@@ -504,6 +504,7 @@
         <button class="btn tiny ghost report-tab-btn" data-tab="categories">توزيع التصنيفات</button>
         <button class="btn tiny ghost report-tab-btn" data-tab="turnover">معدل الدوران</button>
         <button class="btn tiny ghost report-tab-btn" data-tab="nospace">موردين بلا مساحة</button>
+        <button class="btn tiny ghost report-tab-btn" data-tab="supplierprofile">🔍 ملف المورد</button>
       </div>
 
       <div id="report-content"><p style="color:var(--muted); font-size:13px;">جاري التحميل...</p></div>
@@ -1504,7 +1505,98 @@ function renderRackTreemap(data, catList){
       <tbody>${data.map(s => `<tr><td>${s.supplier_code ?? '—'}</td><td style="font-weight:600;">${s.supplier_name}</td><td>${Number(s.total_purchase_net_cost).toFixed(2)}</td></tr>`).join('')}</tbody>
     </table></div>`;
   }
+
+  else if(tab === 'supplierprofile'){
+    el.innerHTML = `
+      <div class="card" style="margin-bottom:16px;">
+        <div class="field" style="margin-bottom:0; position:relative;">
+          <label>ابحث بالاسم أو الكود</label>
+          <input type="text" id="supplier-search-input" placeholder="مثال: الشركة الكويتية أو 1" autocomplete="off">
+          <div id="supplier-search-suggestions" style="display:none;"></div>
+        </div>
+      </div>
+      <div id="supplier-profile-body"></div>`;
+
+    let supDebounce = null;
+    $('supplier-search-input').addEventListener('input', (e) => {
+      const q = e.target.value.trim();
+      clearTimeout(supDebounce);
+      if(q.length < 2){ $('supplier-search-suggestions').style.display = 'none'; return; }
+      supDebounce = setTimeout(async () => {
+        const { data, error } = await sb.rpc('search_suppliers', { p_query: q });
+        if(error || !data || !data.length){ $('supplier-search-suggestions').style.display = 'none'; return; }
+        $('supplier-search-suggestions').innerHTML = data.map(s => `
+          <div class="sugg-item" data-id="${s.supplier_id}">
+            <span>${s.supplier_name} <span style="color:var(--muted); font-size:11px;">(${s.supplier_code})</span></span>
+            <span class="sg-badge">${s.area_units} وحدة</span>
+          </div>`).join('');
+        $('supplier-search-suggestions').style.display = 'block';
+        document.querySelectorAll('#supplier-search-suggestions .sugg-item').forEach(el2 => {
+          el2.addEventListener('click', () => {
+            $('supplier-search-suggestions').style.display = 'none';
+            $('supplier-search-input').value = el2.querySelector('span').textContent.trim();
+            loadSupplierProfile(el2.dataset.id);
+          });
+        });
+      }, 250);
+    });
+    document.addEventListener('click', (e) => {
+      if(!e.target.closest('#supplier-search-input') && !e.target.closest('#supplier-search-suggestions')){
+        $('supplier-search-suggestions').style.display = 'none';
+      }
+    });
+  }
 }
+
+async function loadSupplierProfile(supplierId){
+  const body = $('supplier-profile-body');
+  body.innerHTML = '<p style="color:var(--muted); font-size:13px;">جاري التحميل...</p>';
+  const { data, error } = await sb.rpc('get_supplier_profile', { p_supplier_id: supplierId });
+  if(error || !data || !data.length){ body.innerHTML = '<p style="color:var(--danger); font-size:13px;">تعذّر تحميل ملف المورد.</p>'; return; }
+  const s = data[0];
+  const locations = s.locations || [];
+
+  body.innerHTML = `
+    <div class="card" style="margin-bottom:14px;">
+      <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+        <div>
+          <div style="font-weight:800; font-size:16px;">${s.supplier_name}</div>
+          <div style="color:var(--muted); font-size:12.5px; margin-top:4px;">كود ${s.supplier_code}${s.supplier_category ? ' — ' + s.supplier_category : ''}</div>
+          ${s.contract_start ? `<div style="color:var(--muted); font-size:11.5px; margin-top:4px;">العقد: ${s.contract_start} → ${s.contract_end||'—'}</div>` : ''}
+        </div>
+        <div style="display:flex; gap:16px; text-align:center;">
+          <div><div style="font-family:var(--font-mono); font-weight:700; font-size:19px; color:var(--accent);">${s.total_units}</div><div style="font-size:10.5px; color:var(--muted);">وحدة تأجير</div></div>
+          <div><div style="font-family:var(--font-mono); font-weight:700; font-size:19px;">${s.total_racks}</div><div style="font-size:10.5px; color:var(--muted);">رف</div></div>
+          <div><div style="font-family:var(--font-mono); font-weight:700; font-size:19px;">${s.branches_count}</div><div style="font-size:10.5px; color:var(--muted);">فرع</div></div>
+        </div>
+      </div>
+    </div>
+    <div style="font-size:13px; font-weight:600; color:var(--muted); margin-bottom:10px;">أماكن تواجد المورد بالتفصيل</div>
+    ${locations.length ? locations.map(loc => `
+      <div class="card" style="margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div>
+            <span style="font-family:var(--font-mono); font-weight:700; direction:ltr;">${loc.rack_code}</span>
+            <span style="color:var(--muted); font-size:12px; margin-inline-start:8px;">${RACK_TYPE_LABELS[loc.rack_type]||loc.rack_type}</span>
+          </div>
+          <div style="font-size:12px; color:var(--muted);">${loc.branch_name||'—'} / ${loc.floor_name||'—'}</div>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+          ${loc.units.map(u => `<span class="group-chip${u.tier==='premium'?' premium':''}" style="cursor:pointer;" data-code="${u.part_code}"><span class="gc-code">${u.part_code}</span><span class="gc-sub">${u.unit_type}</span></span>`).join('')}
+        </div>
+      </div>`).join('') : '<p style="color:var(--muted); font-size:13px;">مفيش مساحات مسجّلة لهذا المورد.</p>'}
+  `;
+
+  document.querySelectorAll('#supplier-profile-body .group-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      goToSection('scan-app');
+      detailsBackTarget = 'page-home';
+      detailsBackContext = null;
+      renderPartDetails(chip.dataset.code);
+    });
+  });
+}
+
 
 /* ============ تفاصيل رف واحد (Drill-down) + تعديل مباشر ============ */
 const STATUS_LABELS_MAP = { occupied:'مؤجر', vacant:'فارغ', maintenance:'تحت الصيانة' };
