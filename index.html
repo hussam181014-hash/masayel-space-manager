@@ -18,6 +18,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
   :root{
     --font-ui:'IBM Plex Sans Arabic',sans-serif; --font-mono:'IBM Plex Mono',monospace;
@@ -642,6 +643,7 @@
         <div id="rack3d-wrap" style="overflow-x:auto; padding:10px 0; display:flex; gap:24px; justify-content:center;"></div>
         <div style="text-align:center; margin-top:18px;">
           <button class="btn" id="restart-btn" style="width:auto; padding:11px 26px;">إنشاء رف تاني</button>
+          <button class="btn ghost" id="print-all-codes" style="width:auto; padding:11px 26px; margin-inline-start:10px;">🖨️ طباعة باركود القواطع</button>
         </div>
       </div>
 
@@ -694,6 +696,7 @@
         <div class="actions-row">
           <button class="btn" id="go-edit">تعديل</button>
           <button class="btn ghost" id="go-history">سجل التعديلات</button>
+          <button class="btn ghost" id="print-single-code">🖨️ طباعة الباركود</button>
         </div>
       </div>
 
@@ -2315,6 +2318,63 @@ $('go-history').addEventListener('click', async () => {
 });
 
 $('scan-back-menu').addEventListener('click', () => goToSection('dashboard-home'));
+
+/* ============ طباعة باركود القواطع (QR — بيتقرا بكاميرا الموبايل زي مسح الباركود العادي) ============ */
+async function buildLabelsHTML(items){
+  const cards = await Promise.all(items.map(async (it) => {
+    const qrUrl = await QRCode.toDataURL(it.code, { width: 260, margin: 1, color: { dark: '#0f172a', light: '#ffffff' } });
+    return `
+      <div class="label">
+        <img src="${qrUrl}" alt="QR">
+        <div class="label-code">${it.code}</div>
+        ${it.subtitle ? `<div class="label-sub">${it.subtitle}${it.tier === 'premium' ? ' ★' : ''}</div>` : ''}
+      </div>`;
+  }));
+  return `<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="UTF-8">
+<title>طباعة الباركود</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'IBM Plex Sans Arabic', Tahoma, sans-serif; margin: 0; padding: 16px; background:#fff; }
+  .toolbar { text-align:center; margin-bottom: 14px; }
+  .toolbar button { font-family: inherit; font-size: 14px; padding: 8px 20px; border-radius: 8px; border: 1px solid #0d9488; background:#0d9488; color:#fff; cursor:pointer; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .label { border: 1px dashed #94a3b8; border-radius: 10px; padding: 10px; text-align: center; page-break-inside: avoid; break-inside: avoid; }
+  .label img { width: 100%; max-width: 140px; height: auto; }
+  .label-code { font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 15px; direction: ltr; margin-top: 6px; color:#0f172a; }
+  .label-sub { font-size: 11px; color:#475569; margin-top: 2px; }
+  @media print { .toolbar { display:none; } body{ padding:0; } .grid{ gap:8px; } }
+</style></head>
+<body>
+  <div class="toolbar"><button onclick="window.print()">طباعة</button></div>
+  <div class="grid">${cards.join('')}</div>
+</body></html>`;
+}
+
+async function printCodeLabels(items){
+  if(!items || !items.length){ showToast('مفيش أكواد للطباعة.', true); return; }
+  const win = window.open('', '_blank');
+  if(!win){ showToast('المتصفح منع فتح نافذة الطباعة — اسمح بالنوافذ المنبثقة.', true); return; }
+  win.document.write('<p style="font-family:sans-serif;padding:20px;">جاري تجهيز الباركود...</p>');
+  const html = await buildLabelsHTML(items);
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+}
+
+$('print-all-codes').addEventListener('click', () => {
+  const items = generatedParts.map(p => ({ code: p.part_code, subtitle: p.unit_type, tier: p.tier }));
+  printCodeLabels(items);
+});
+
+$('print-single-code').addEventListener('click', () => {
+  if(!currentPartCode) return;
+  printCodeLabels([{
+    code: currentPartCode,
+    subtitle: $('d-unittype').textContent,
+    tier: $('d-tier').classList.contains('premium') ? 'premium' : 'standard'
+  }]);
+});
 
 </script>
 </body>
