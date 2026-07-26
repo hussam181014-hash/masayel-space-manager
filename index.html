@@ -1187,7 +1187,52 @@ async function loadReportTab(tab){
       </div>
       <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:12px;">
         ${catList.slice(0,12).map(c => `<div style="display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--muted);"><span style="width:10px; height:10px; border-radius:3px; background:${colorForCategory(c,catList)};"></span>${c}</div>`).join('')}
+      </div>
+      <div class="card" style="margin-top:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+          <label style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; cursor:pointer;">
+            <input type="checkbox" id="rack-select-all"> تحديد كل الأرفف (${data.length})
+          </label>
+          <button class="btn ghost small" id="print-selected-racks" disabled>🖨️ طباعة باركود الأرفف المحددة (0)</button>
+        </div>
+        <div id="rack-select-list" style="max-height:220px; overflow-y:auto; display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:6px;"></div>
       </div>`;
+
+    const selectList = $('rack-select-list');
+    data.forEach(u => {
+      const lbl = document.createElement('label');
+      lbl.style.cssText = 'display:flex; align-items:center; gap:6px; font-size:12px; background:var(--panel-2); border:1px solid var(--border); border-radius:8px; padding:6px 8px; cursor:pointer;';
+      lbl.innerHTML = `<input type="checkbox" class="rack-select-chk" value="${u.rack_code}"><span style="direction:ltr;">${u.rack_code}</span><span style="color:var(--muted); margin-inline-start:auto;">${u.total_parts} قاطع</span>`;
+      selectList.appendChild(lbl);
+    });
+
+    function updateSelectedRacksCount(){
+      const checked = document.querySelectorAll('.rack-select-chk:checked');
+      $('print-selected-racks').textContent = `🖨️ طباعة باركود الأرفف المحددة (${checked.length})`;
+      $('print-selected-racks').disabled = checked.length === 0;
+    }
+    selectList.addEventListener('change', updateSelectedRacksCount);
+    $('rack-select-all').addEventListener('change', (e) => {
+      document.querySelectorAll('.rack-select-chk').forEach(chk => chk.checked = e.target.checked);
+      updateSelectedRacksCount();
+    });
+
+    $('print-selected-racks').addEventListener('click', async () => {
+      const codes = Array.from(document.querySelectorAll('.rack-select-chk:checked')).map(chk => chk.value);
+      if(!codes.length) return;
+      const btn = $('print-selected-racks');
+      const originalText = btn.textContent;
+      btn.disabled = true; btn.textContent = 'جاري التجهيز...';
+      const allItems = [];
+      for(const code of codes){
+        const { data: parts, error } = await sb.rpc('get_rack_parts_grid', { p_rack_code: code });
+        if(error || !parts) continue;
+        parts.forEach(p => allItems.push({ code: p.part_code, subtitle: p.unit_type, tier: p.tier, group: code }));
+      }
+      btn.disabled = false; btn.textContent = originalText;
+      if(!allItems.length){ showToast('مفيش أكواد للأرفف المحددة.', true); return; }
+      printCodeLabels(allItems);
+    });
 
     const box = $('treemap-box');
     rects.forEach(r => {
@@ -1332,12 +1377,20 @@ async function showRackDetail(rackCode){
           <div style="color:var(--muted); font-size:10.5px;">نسبة الإشغال</div>
         </div>
       </div>
+      <div style="margin-top:10px; text-align:left;">
+        <button class="btn ghost small" id="print-rack-btn">🖨️ طباعة باركود الرف</button>
+      </div>
     </div>
     <div class="card">
       <div id="rack-parts-grid"></div>
       <div id="rack-level-panel"></div>
     </div>
     <div id="rack-part-editor"></div>`;
+
+  $('print-rack-btn').addEventListener('click', () => {
+    const items = data.map(p => ({ code: p.part_code, subtitle: p.unit_type, tier: p.tier, group: rackCode }));
+    printCodeLabels(items);
+  });
 
   $('rack-back-map').addEventListener('click', () => {
     document.querySelectorAll('.report-tab-btn').forEach(b => { b.classList.remove('sel'); b.classList.add('ghost'); });
@@ -2321,7 +2374,7 @@ $('scan-back-menu').addEventListener('click', () => goToSection('dashboard-home'
 
 /* ============ طباعة باركود القواطع (QR — بيتقرا بكاميرا الموبايل زي مسح الباركود العادي) ============ */
 async function buildLabelsHTML(items){
-  const cards = await Promise.all(items.map(async (it) => {
+  const cardHtmlFor = async (it) => {
     const qrUrl = await QRCode.toDataURL(it.code, { width: 260, margin: 1, color: { dark: '#0f172a', light: '#ffffff' } });
     return `
       <div class="label">
@@ -2329,7 +2382,28 @@ async function buildLabelsHTML(items){
         <div class="label-code">${it.code}</div>
         ${it.subtitle ? `<div class="label-sub">${it.subtitle}${it.tier === 'premium' ? ' ★' : ''}</div>` : ''}
       </div>`;
-  }));
+  };
+
+  const hasGroups = items.some(it => it.group);
+  let bodyHtml;
+  if(hasGroups){
+    const groups = [];
+    items.forEach(it => { if(!groups.includes(it.group)) groups.push(it.group); });
+    const sections = await Promise.all(groups.map(async (g, gi) => {
+      const groupItems = items.filter(it => it.group === g);
+      const cards = await Promise.all(groupItems.map(cardHtmlFor));
+      return `
+        <div class="rack-group" style="${gi > 0 ? 'page-break-before: always;' : ''}">
+          <div class="group-title">${g} <span class="group-count">(${groupItems.length} قاطع)</span></div>
+          <div class="grid">${cards.join('')}</div>
+        </div>`;
+    }));
+    bodyHtml = sections.join('');
+  } else {
+    const cards = await Promise.all(items.map(cardHtmlFor));
+    bodyHtml = `<div class="grid">${cards.join('')}</div>`;
+  }
+
   return `<!DOCTYPE html>
 <html lang="ar" dir="rtl"><head><meta charset="UTF-8">
 <title>طباعة الباركود</title>
@@ -2338,6 +2412,9 @@ async function buildLabelsHTML(items){
   body { font-family: 'IBM Plex Sans Arabic', Tahoma, sans-serif; margin: 0; padding: 16px; background:#fff; }
   .toolbar { text-align:center; margin-bottom: 14px; }
   .toolbar button { font-family: inherit; font-size: 14px; padding: 8px 20px; border-radius: 8px; border: 1px solid #0d9488; background:#0d9488; color:#fff; cursor:pointer; }
+  .group-title { font-weight: 800; font-size: 14px; direction: ltr; text-align: right; border-bottom: 2px solid #0d9488; padding-bottom: 6px; margin: 18px 0 10px; }
+  .rack-group:first-child .group-title { margin-top: 0; }
+  .group-count { font-weight: 400; color: #64748b; font-size: 11px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
   .label { border: 1px dashed #94a3b8; border-radius: 10px; padding: 10px; text-align: center; page-break-inside: avoid; break-inside: avoid; }
   .label img { width: 100%; max-width: 140px; height: auto; }
@@ -2347,7 +2424,7 @@ async function buildLabelsHTML(items){
 </style></head>
 <body>
   <div class="toolbar"><button onclick="window.print()">طباعة</button></div>
-  <div class="grid">${cards.join('')}</div>
+  ${bodyHtml}
 </body></html>`;
 }
 
