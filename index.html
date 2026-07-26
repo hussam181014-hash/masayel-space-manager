@@ -683,7 +683,7 @@
       <div class="step" id="step-3">
         <div class="field"><label>كود الرف (متولّد تلقائيًا)</label><input type="text" id="f-code" readonly></div>
         <div class="codes-summary">
-          <div class="stat"><b id="prev-count">0</b><span>إجمالي وحدات التأجير</span></div>
+          <div class="stat" title="كل قاطع (عمود) = 4 وحدات تأجير، وحدة لكل مستوى"><b id="prev-count">0</b><span>إجمالي وحدات التأجير <i class="ti ti-info-circle" style="font-size:11px;"></i></span></div>
           <div class="stat"><b id="premium-count">0</b><span>قواطع مميزة</span></div>
         </div>
         <p class="tier-hint">دوس على أي قاطع عشان تحدده كـ"مميز" (إيجار أعلى) — الجندولتين الطرفيتين (لو مفعّلتين) متحددة مميزة تلقائيًا وتقدر تغيّرها.</p>
@@ -1254,11 +1254,11 @@ if(tab === 'map'){
   ]);
   if(error){ el.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+error.message+'</p>'; return; }
   if(!data || !data.length){ el.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش أرفف متسجّلة لسه.</p>'; return; }
-  renderMapLevel(data, endcapRes.data || []);
+  await renderMapLevel(data, endcapRes.data || []);
   return;
 }
 
-function renderMapLevel(allData, endcapData){
+async function renderMapLevel(allData, endcapData){
   const el = $('report-content');
   if(mapSelectedType === null){
     const types = ['shelf','freezer','pallet'];
@@ -1294,6 +1294,21 @@ function renderMapLevel(allData, endcapData){
   const occRate = totalParts > 0 ? Math.round(totalOccupied/totalParts*100) : 0;
   const catList = Array.from(new Set(data.map(u => u.dominant_category)));
   const typeLabel = isGondola ? 'جندولات' : RACK_TYPE_LABELS[mapSelectedType];
+  const racksLabel = mapSelectedType === 'pallet' ? 'عدد الطبليات' : 'عدد الأرفف';
+
+  let extraKpis = '';
+  if(!isGondola){
+    const { data: hs } = await sb.rpc('report_type_hierarchy_stats', { p_rack_type: mapSelectedType });
+    const h = (hs && hs[0]) || {};
+    if(mapSelectedType === 'shelf'){
+      extraKpis = `<div class="kpi-mini"><b>${h.total_columns||0}</b><span>إجمالي القواطع</span></div>`;
+    } else if(mapSelectedType === 'freezer'){
+      extraKpis = `
+        <div class="kpi-mini"><b>${h.total_columns||0}</b><span>إجمالي القواطع</span></div>
+        <div class="kpi-mini"><b>${h.total_doors||0}</b><span>إجمالي الأبواب</span></div>
+        <div class="kpi-mini"><b>${h.total_basins||0}</b><span>إجمالي الأحواض</span></div>`;
+    }
+  }
 
   el.innerHTML = `
     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
@@ -1303,11 +1318,12 @@ function renderMapLevel(allData, endcapData){
         <div class="vt-opt ${mapViewMode==='treemap'?'sel':''}" data-mode="treemap">خريطة</div>
       </div>
     </div>
-    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px;">
-      <div class="kpi-mini"><b>${data.length}</b><span>عدد الأرفف</span></div>
-      <div class="kpi-mini"><b>${totalParts}</b><span>إجمالي وحدات التأجير</span></div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:16px;">
+      <div class="kpi-mini"><b>${data.length}</b><span>${racksLabel}</span></div>
+      <div class="kpi-mini" title="كل قاطع (عمود) = 4 وحدات تأجير، وحدة لكل مستوى"><b>${totalParts}</b><span>إجمالي وحدات التأجير <i class="ti ti-info-circle" style="font-size:11px;"></i></span></div>
       <div class="kpi-mini"><b>${occRate}%</b><span>نسبة الإشغال</span></div>
       <div class="kpi-mini"><b>${catList.length}</b><span>عدد التصنيفات الظاهرة</span></div>
+      ${extraKpis}
     </div>
     <div id="map-view-body"></div>
     <div class="card" style="margin-top:14px;">
