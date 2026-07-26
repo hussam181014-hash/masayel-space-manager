@@ -304,6 +304,20 @@
   .score-bar{position:relative; width:100px; height:8px; background:var(--panel-2); border-radius:5px; overflow:hidden; display:inline-block; vertical-align:middle; margin-left:8px;}
   .score-bar .fill{position:absolute; top:0; right:0; height:100%; background:linear-gradient(90deg, var(--accent), var(--accent-2)); border-radius:5px;}
   .kpi-mini{background:var(--panel-2); border:1px solid var(--border); border-radius:12px; padding:14px; text-align:center;}
+  .view-toggle{display:flex; border:1px solid var(--border); border-radius:10px; overflow:hidden;}
+  .vt-opt{padding:8px 16px; font-size:12.5px; font-weight:600; color:var(--muted); cursor:pointer; transition:background .15s;}
+  .vt-opt.sel{background:var(--accent-dim); color:var(--accent-hover);}
+  .vt-opt:hover{background:var(--panel-2);}
+  .rank-row{
+    display:flex; align-items:center; gap:12px; padding:10px 14px; background:var(--panel); border:1px solid var(--border);
+    border-radius:10px; cursor:pointer; transition:border-color .15s;
+  }
+  .rank-row:hover{border-color:var(--border-strong);}
+  .rank-row .rr-code{font-family:var(--font-mono); font-weight:700; font-size:13px; direction:ltr; width:74px; flex-shrink:0;}
+  .rank-row .rr-bar{flex:1; height:8px; background:var(--panel-2); border-radius:5px; overflow:hidden;}
+  .rank-row .rr-bar div{height:100%; border-radius:5px;}
+  .rank-row .rr-pct{font-size:13px; font-weight:700; width:38px; text-align:left; flex-shrink:0;}
+  .rank-row .rr-count{font-size:11.5px; color:var(--muted); width:60px; text-align:left; flex-shrink:0;}
   .kpi-mini b{display:block; font-size:20px; color:var(--accent); margin-bottom:4px; font-family:var(--font-mono);}
   .kpi-mini span{font-size:11px; color:var(--muted);}
   .cat-report-row{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:10px; cursor:pointer;}
@@ -1229,99 +1243,171 @@ async function loadReportTab(tab){
   const el = $('report-content');
   el.innerHTML = '<p style="color:var(--muted); font-size:13px;">جاري التحميل...</p>';
 
-  if(tab === 'map'){
-    const { data, error } = await sb.rpc('report_floor_map');
-    if(error){ el.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+error.message+'</p>'; return; }
-    if(!data || !data.length){ el.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش أرفف متسجّلة لسه.</p>'; return; }
+let mapSelectedType = null;
+let mapViewMode = 'list';
 
-    const totalParts = data.reduce((s,u) => s + Math.max(1,u.total_parts), 0);
-    const totalOccupied = data.reduce((s,u) => s + u.occupied_parts, 0);
-    const vendorTotal = new Set();
-    const catList = Array.from(new Set(data.map(u => u.dominant_category)));
-    const W = 900, H = 480;
-    const items = data.map(u => ({ item:u, area: (Math.max(1,u.total_parts)/totalParts) * (W*H) }));
-    const rects = squarify(items, 0, 0, W, H);
-    const occRate = totalParts > 0 ? Math.round(totalOccupied/totalParts*100) : 0;
+if(tab === 'map'){
+  const { data, error } = await sb.rpc('report_floor_map');
+  if(error){ el.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+error.message+'</p>'; return; }
+  if(!data || !data.length){ el.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش أرفف متسجّلة لسه.</p>'; return; }
+  renderMapLevel(data);
+  return;
+}
 
-    el.innerHTML = `
-      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px;">
-        <div class="kpi-mini"><b>${data.length}</b><span>عدد الأرفف</span></div>
-        <div class="kpi-mini"><b>${totalParts}</b><span>إجمالي القواطع</span></div>
-        <div class="kpi-mini"><b>${occRate}%</b><span>نسبة الإشغال</span></div>
-        <div class="kpi-mini"><b>${catList.length}</b><span>عدد التصنيفات الظاهرة</span></div>
-      </div>
-      <p style="color:var(--muted); font-size:12px; margin-bottom:10px;">حجم المربع = عدد القواطع، اللون حسب التصنيف الأغلب في الرف. دوس على أي رف لعرض تفاصيله.</p>
-      <div class="card" style="padding:10px;">
-        <div id="treemap-box" style="position:relative; width:100%; height:${H}px;"></div>
-      </div>
-      <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:12px;">
-        ${catList.slice(0,12).map(c => `<div style="display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--muted);"><span style="width:10px; height:10px; border-radius:3px; background:${colorForCategory(c,catList)};"></span>${c}</div>`).join('')}
-      </div>
-      <div class="card" style="margin-top:14px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
-          <label style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; cursor:pointer;">
-            <input type="checkbox" id="rack-select-all"> تحديد كل الأرفف (${data.length})
-          </label>
-          <button class="btn ghost small" id="print-selected-racks" disabled>🖨️ طباعة باركود الأرفف المحددة (0)</button>
-        </div>
-        <div id="rack-select-list" style="max-height:220px; overflow-y:auto; display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:6px;"></div>
-      </div>`;
-
-    const selectList = $('rack-select-list');
-    data.forEach(u => {
-      const lbl = document.createElement('label');
-      lbl.style.cssText = 'display:flex; align-items:center; gap:6px; font-size:12px; background:var(--panel-2); border:1px solid var(--border); border-radius:8px; padding:6px 8px; cursor:pointer;';
-      lbl.innerHTML = `<input type="checkbox" class="rack-select-chk" value="${u.rack_code}"><span style="direction:ltr;">${u.rack_code}</span><span style="color:var(--muted); margin-inline-start:auto;">${u.total_parts} قاطع</span>`;
-      selectList.appendChild(lbl);
-    });
-
-    function updateSelectedRacksCount(){
-      const checked = document.querySelectorAll('.rack-select-chk:checked');
-      $('print-selected-racks').textContent = `🖨️ طباعة باركود الأرفف المحددة (${checked.length})`;
-      $('print-selected-racks').disabled = checked.length === 0;
-    }
-    selectList.addEventListener('change', updateSelectedRacksCount);
-    $('rack-select-all').addEventListener('change', (e) => {
-      document.querySelectorAll('.rack-select-chk').forEach(chk => chk.checked = e.target.checked);
-      updateSelectedRacksCount();
-    });
-
-    $('print-selected-racks').addEventListener('click', async () => {
-      const codes = Array.from(document.querySelectorAll('.rack-select-chk:checked')).map(chk => chk.value);
-      if(!codes.length) return;
-      const btn = $('print-selected-racks');
-      const originalText = btn.textContent;
-      btn.disabled = true; btn.textContent = 'جاري التجهيز...';
-      const allItems = [];
-      for(const code of codes){
-        const { data: parts, error } = await sb.rpc('get_rack_parts_grid', { p_rack_code: code });
-        if(error || !parts) continue;
-        allItems.push(...buildHierarchicalItems(parts, code));
-      }
-      btn.disabled = false; btn.textContent = originalText;
-      if(!allItems.length){ showToast('مفيش أكواد للأرفف المحددة.', true); return; }
-      printCodeLabels(allItems);
-    });
-
-    const box = $('treemap-box');
-    rects.forEach(r => {
-      const u = r.item;
-      const color = colorForCategory(u.dominant_category, catList);
-      const div = document.createElement('div');
-      const showText = (r.w/W*100) > 6 && (r.h/H*100) > 7;
-      div.style.cssText = `position:absolute; left:${r.x/W*100}%; top:${r.y/H*100}%; width:${r.w/W*100}%; height:${r.h/H*100}%;
-        background:${color}22; border:1.5px solid ${color}; box-sizing:border-box; padding:5px; overflow:hidden; cursor:pointer;`;
-      if(showText){
-        div.innerHTML = `<div style="font-size:11px; font-weight:700; color:var(--text); direction:ltr;">${u.rack_code}</div>
-          <div style="font-size:9.5px; color:var(--muted); margin-top:2px;">${u.dominant_category}</div>
-          <div style="font-size:9.5px; color:var(--muted);">إشغال ${u.occ_pct}% · ${u.total_parts} قاطع</div>`;
-      }
-      div.title = `${u.rack_code} — ${u.dominant_category} — إشغال ${u.occ_pct}%`;
-      div.addEventListener('click', () => showRackDetail(u.rack_code));
-      box.appendChild(div);
+function renderMapLevel(allData){
+  const el = $('report-content');
+  if(mapSelectedType === null){
+    const types = ['shelf','freezer','pallet'];
+    const cardsHtml = types.map(t => {
+      const racks = allData.filter(u => u.rack_type === t);
+      if(!racks.length) return '';
+      const avgOcc = Math.round(racks.reduce((s,u) => s + Number(u.occ_pct), 0) / racks.length);
+      const icon = t === 'shelf' ? 'ti-layout-grid' : t === 'freezer' ? 'ti-snowflake' : 'ti-package';
+      return `
+        <div class="dash-card map-type-card" data-type="${t}" style="cursor:pointer;">
+          <div class="dc-ic"><i class="ti ${icon}"></i></div>
+          <h3>${RACK_TYPE_LABELS[t]}</h3>
+          <p>${racks.length} — متوسط إشغال ${avgOcc}%</p>
+        </div>`;
+    }).join('');
+    el.innerHTML = `<p style="color:var(--muted); font-size:12.5px; margin-bottom:14px;">اختار نوع عشان تشوف الأرفف بتاعته</p><div class="dash-grid">${cardsHtml}</div>`;
+    document.querySelectorAll('.map-type-card').forEach(c => {
+      c.addEventListener('click', () => { mapSelectedType = c.dataset.type; renderMapLevel(allData); });
     });
     return;
   }
+
+  const data = allData.filter(u => u.rack_type === mapSelectedType);
+  const totalParts = data.reduce((s,u) => s + Math.max(1,u.total_parts), 0);
+  const totalOccupied = data.reduce((s,u) => s + u.occupied_parts, 0);
+  const occRate = totalParts > 0 ? Math.round(totalOccupied/totalParts*100) : 0;
+  const catList = Array.from(new Set(data.map(u => u.dominant_category)));
+
+  el.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+      <a class="menu-back" id="map-back-types"><i class="ti ti-arrow-right"></i> ${RACK_TYPE_LABELS[mapSelectedType]} — ${data.length}</a>
+      <div class="view-toggle">
+        <div class="vt-opt ${mapViewMode==='list'?'sel':''}" data-mode="list">قائمة</div>
+        <div class="vt-opt ${mapViewMode==='treemap'?'sel':''}" data-mode="treemap">خريطة</div>
+      </div>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px;">
+      <div class="kpi-mini"><b>${data.length}</b><span>عدد الأرفف</span></div>
+      <div class="kpi-mini"><b>${totalParts}</b><span>إجمالي القواطع</span></div>
+      <div class="kpi-mini"><b>${occRate}%</b><span>نسبة الإشغال</span></div>
+      <div class="kpi-mini"><b>${catList.length}</b><span>عدد التصنيفات الظاهرة</span></div>
+    </div>
+    <div id="map-view-body"></div>
+    <div class="card" style="margin-top:14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+        <label style="display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600; cursor:pointer;">
+          <input type="checkbox" id="rack-select-all"> تحديد كل الأرفف (${data.length})
+        </label>
+        <button class="btn ghost small" id="print-selected-racks" disabled>🖨️ طباعة باركود الأرفف المحددة (0)</button>
+      </div>
+      <div id="rack-select-list" style="max-height:220px; overflow-y:auto; display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:6px;"></div>
+    </div>`;
+
+  $('map-back-types').addEventListener('click', () => { mapSelectedType = null; renderMapLevel(allData); });
+  document.querySelectorAll('.vt-opt').forEach(o => {
+    o.addEventListener('click', () => { mapViewMode = o.dataset.mode; renderMapLevel(allData); });
+  });
+
+  const selectList = $('rack-select-list');
+  data.forEach(u => {
+    const lbl = document.createElement('label');
+    lbl.style.cssText = 'display:flex; align-items:center; gap:6px; font-size:12px; background:var(--panel-2); border:1px solid var(--border); border-radius:8px; padding:6px 8px; cursor:pointer;';
+    lbl.innerHTML = `<input type="checkbox" class="rack-select-chk" value="${u.rack_code}"><span style="direction:ltr;">${u.rack_code}</span><span style="color:var(--muted); margin-inline-start:auto;">${u.total_parts} قاطع</span>`;
+    selectList.appendChild(lbl);
+  });
+  function updateSelectedRacksCount(){
+    const checked = document.querySelectorAll('.rack-select-chk:checked');
+    $('print-selected-racks').textContent = `🖨️ طباعة باركود الأرفف المحددة (${checked.length})`;
+    $('print-selected-racks').disabled = checked.length === 0;
+  }
+  selectList.addEventListener('change', updateSelectedRacksCount);
+  $('rack-select-all').addEventListener('change', (e) => {
+    document.querySelectorAll('.rack-select-chk').forEach(chk => chk.checked = e.target.checked);
+    updateSelectedRacksCount();
+  });
+  $('print-selected-racks').addEventListener('click', async () => {
+    const codes = Array.from(document.querySelectorAll('.rack-select-chk:checked')).map(chk => chk.value);
+    if(!codes.length) return;
+    const btn = $('print-selected-racks');
+    const originalText = btn.textContent;
+    btn.disabled = true; btn.textContent = 'جاري التجهيز...';
+    const allItems = [];
+    for(const code of codes){
+      const { data: parts, error } = await sb.rpc('get_rack_parts_grid', { p_rack_code: code });
+      if(error || !parts) continue;
+      allItems.push(...buildHierarchicalItems(parts, code));
+    }
+    btn.disabled = false; btn.textContent = originalText;
+    if(!allItems.length){ showToast('مفيش أكواد للأرفف المحددة.', true); return; }
+    printCodeLabels(allItems);
+  });
+
+  if(mapViewMode === 'list'){
+    renderRackRankedList(data);
+  } else {
+    renderRackTreemap(data, catList);
+  }
+}
+
+function occColor(pct){
+  if(pct < 30) return { fill:'var(--danger)', text:'var(--danger)' };
+  if(pct < 70) return { fill:'var(--amber)', text:'var(--amber)' };
+  return { fill:'var(--success)', text:'var(--success)' };
+}
+
+function renderRackRankedList(data){
+  const sorted = [...data].sort((a,b) => Number(a.occ_pct) - Number(b.occ_pct));
+  const body = $('map-view-body');
+  body.innerHTML = `<p style="color:var(--muted); font-size:12px; margin-bottom:10px;">مرتّب من الأقل إشغالاً — دوس على أي رف لعرض تفاصيله.</p>
+    <div style="display:flex; flex-direction:column; gap:6px;">
+      ${sorted.map(u => {
+        const c = occColor(Number(u.occ_pct));
+        return `<div class="rank-row" data-code="${u.rack_code}">
+          <span class="rr-code">${u.rack_code}</span>
+          <div class="rr-bar"><div style="width:${u.occ_pct}%; background:${c.fill};"></div></div>
+          <span class="rr-pct" style="color:${c.text};">${u.occ_pct}%</span>
+          <span class="rr-count">${u.total_parts} قاطع</span>
+        </div>`;
+      }).join('')}
+    </div>`;
+  document.querySelectorAll('.rank-row').forEach(r => r.addEventListener('click', () => showRackDetail(r.dataset.code)));
+}
+
+function renderRackTreemap(data, catList){
+  const W = 900, H = 420;
+  const totalParts = data.reduce((s,u) => s + Math.max(1,u.total_parts), 0);
+  const items = data.map(u => ({ item:u, area: (Math.max(1,u.total_parts)/totalParts) * (W*H) }));
+  const rects = squarify(items, 0, 0, W, H);
+  const body = $('map-view-body');
+  body.innerHTML = `
+    <p style="color:var(--muted); font-size:12px; margin-bottom:10px;">حجم المربع = عدد القواطع، اللون حسب التصنيف الأغلب. دوس على أي رف لعرض تفاصيله.</p>
+    <div class="card" style="padding:10px;"><div id="treemap-box" style="position:relative; width:100%; height:${H}px;"></div></div>
+    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:12px;">
+      ${catList.slice(0,12).map(c => `<div style="display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--muted);"><span style="width:10px; height:10px; border-radius:3px; background:${colorForCategory(c,catList)};"></span>${c}</div>`).join('')}
+    </div>`;
+  const box = $('treemap-box');
+  rects.forEach(r => {
+    const u = r.item;
+    const color = colorForCategory(u.dominant_category, catList);
+    const div = document.createElement('div');
+    const showText = (r.w/W*100) > 6 && (r.h/H*100) > 7;
+    div.style.cssText = `position:absolute; left:${r.x/W*100}%; top:${r.y/H*100}%; width:${r.w/W*100}%; height:${r.h/H*100}%;
+      background:${color}22; border:1.5px solid ${color}; box-sizing:border-box; padding:5px; overflow:hidden; cursor:pointer;`;
+    if(showText){
+      div.innerHTML = `<div style="font-size:11px; font-weight:700; color:var(--text); direction:ltr;">${u.rack_code}</div>
+        <div style="font-size:9.5px; color:var(--muted); margin-top:2px;">${u.dominant_category}</div>
+        <div style="font-size:9.5px; color:var(--muted);">إشغال ${u.occ_pct}% · ${u.total_parts} قاطع</div>`;
+    }
+    div.title = `${u.rack_code} — ${u.dominant_category} — إشغال ${u.occ_pct}%`;
+    div.addEventListener('click', () => showRackDetail(u.rack_code));
+    box.appendChild(div);
+  });
+}
 
   if(tab === 'overview'){
     const { data, error } = await sb.rpc('report_space_overview');
