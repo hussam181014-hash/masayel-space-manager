@@ -1773,6 +1773,14 @@ function renderFreezerBColumns(data, rackCode, grid){
     if(parts.some(p => p.status === 'maintenance')) return 'var(--amber)';
     return 'var(--muted)';
   }
+  function supplierSummary(parts){
+    const names = Array.from(new Set(parts.filter(p => p.supplier_name).map(p => p.supplier_name)));
+    if(!names.length) return `<span style="color:var(--muted);">المورد: </span><b>—</b>`;
+    if(names.length === 1){
+      return `<span style="color:var(--muted);">المورد: </span><b style="display:inline-block; max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; vertical-align:bottom;" title="${names[0]}">${names[0]}</b>`;
+    }
+    return `<span style="color:var(--muted);">عدد الموردين: </span><b title="${names.join(' — ')}">${names.length}</b>`;
+  }
 
   function makeSlot(p){
     const slot = document.createElement('div');
@@ -1832,11 +1840,10 @@ function renderFreezerBColumns(data, rackCode, grid){
     wrap.appendChild(illus);
 
     const info = document.createElement('div');
-    info.style.cssText = 'min-width:140px; display:flex; flex-direction:column; gap:6px; font-size:12.5px;';
-    const uniqueSuppliers = Array.from(new Set(parts.filter(p => p.supplier_name).map(p => p.supplier_name)));
+    info.style.cssText = 'min-width:140px; max-width:220px; display:flex; flex-direction:column; gap:6px; font-size:12.5px;';
     info.innerHTML = `
       <div><span style="color:var(--muted);">الإشغال: </span><b style="color:${aggPct(parts) > 50 ? 'var(--success)' : 'var(--amber)'};">${aggPct(parts)}%</b></div>
-      <div><span style="color:var(--muted);">المورد: </span><b>${uniqueSuppliers.length ? uniqueSuppliers.join('، ') : '—'}</b></div>
+      <div>${supplierSummary(parts)}</div>
       <div><span style="color:var(--muted);">عدد الوحدات: </span><b>${parts.length} وحدة</b></div>`;
     wrap.appendChild(info);
 
@@ -1854,25 +1861,28 @@ function renderFreezerBColumns(data, rackCode, grid){
     wrap.appendChild(titleRow);
 
     const illus = document.createElement('div');
-    illus.style.cssText = 'min-width:140px; border:2px solid var(--border-strong); border-radius:12px; overflow:hidden; background:var(--panel); display:flex; flex-direction:column;';
-    sorted.forEach((p, i) => {
-      const row = document.createElement('div');
-      row.style.cssText = `display:flex; align-items:center; justify-content:space-between; padding:8px 10px; ${i < sorted.length-1 ? 'border-bottom:1px dashed var(--border-strong);' : ''}`;
-      const lbl = document.createElement('span');
-      lbl.style.cssText = 'font-size:11px; color:var(--muted); font-weight:600;';
-      lbl.textContent = 'L0' + p.level;
-      row.appendChild(lbl);
-      row.appendChild(makeSlot(p));
-      illus.appendChild(row);
-    });
+    illus.style.cssText = 'min-width:140px; border:2px solid var(--border-strong); border-radius:12px; overflow:hidden; background:var(--panel);';
+    const topRow = document.createElement('div');
+    topRow.style.cssText = 'display:flex; border-bottom:2px solid var(--border-strong);';
+    topRow.appendChild(doorHalf('L01', [sorted[0]].filter(Boolean)));
+    const cLine1 = document.createElement('div'); cLine1.style.cssText = 'width:2px; background:var(--border-strong);';
+    topRow.appendChild(cLine1);
+    topRow.appendChild(doorHalf('L02', [sorted[1]].filter(Boolean)));
+    illus.appendChild(topRow);
+    const botRow = document.createElement('div');
+    botRow.style.cssText = 'display:flex;';
+    botRow.appendChild(doorHalf('L04', [sorted[3]].filter(Boolean)));
+    const cLine2 = document.createElement('div'); cLine2.style.cssText = 'width:2px; background:var(--border-strong);';
+    botRow.appendChild(cLine2);
+    botRow.appendChild(doorHalf('L03', [sorted[2]].filter(Boolean)));
+    illus.appendChild(botRow);
     wrap.appendChild(illus);
 
     const info = document.createElement('div');
-    info.style.cssText = 'min-width:140px; display:flex; flex-direction:column; gap:6px; font-size:12.5px;';
-    const uniqueSuppliers = Array.from(new Set(parts.filter(p => p.supplier_name).map(p => p.supplier_name)));
+    info.style.cssText = 'min-width:140px; max-width:220px; display:flex; flex-direction:column; gap:6px; font-size:12.5px;';
     info.innerHTML = `
       <div><span style="color:var(--muted);">الإشغال: </span><b style="color:${aggPct(parts) > 50 ? 'var(--success)' : 'var(--amber)'};">${aggPct(parts)}%</b></div>
-      <div><span style="color:var(--muted);">المورد: </span><b>${uniqueSuppliers.length ? uniqueSuppliers.join('، ') : '—'}</b></div>
+      <div>${supplierSummary(parts)}</div>
       <div><span style="color:var(--muted);">عدد الوحدات: </span><b>${parts.length} وحدة</b></div>`;
     wrap.appendChild(info);
 
