@@ -497,7 +497,8 @@
       <h2 style="margin-bottom:14px;">تقارير المساحات</h2>
 
       <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
-        <button class="btn tiny report-tab-btn sel" data-tab="map">خريطة الموقع</button>
+        <button class="btn tiny report-tab-btn sel" data-tab="map">توزيع الأرفف</button>
+        <button class="btn tiny ghost report-tab-btn" data-tab="locationmap">خريطة الموقع</button>
         <button class="btn tiny ghost report-tab-btn" data-tab="overview">نظرة عامة</button>
         <button class="btn tiny ghost report-tab-btn" data-tab="suppliers">نسبة كل مورد</button>
         <button class="btn tiny ghost report-tab-btn" data-tab="structure">التصنيف الهيكلي</button>
@@ -1461,7 +1462,7 @@ function renderRackTreemap(data, catList){
     el.innerHTML = `
       <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px;">
         <div class="kpi-mini"><b>${o.total_area_parts}</b><span>إجمالي القواطع (المساحة)</span></div>
-        <div class="kpi-mini"><b>${o.avg_sales_per_sqm !== null ? Number(o.avg_sales_per_sqm).toFixed(3) : '—'}</b><span>متوسط المبيعات/وحدة</span></div>
+        <div class="kpi-mini"><b>${o.avg_sales_per_sqm !== null ? Number(o.avg_sales_per_sqm).toFixed(3) + ' د.ك' : '—'}</b><span>متوسط المبيعات/وحدة</span></div>
         <div class="kpi-mini"><b>${Object.keys(byType).length}</b><span>عدد أنواع الوحدات المستخدمة</span></div>
       </div>
       <div class="card">
@@ -1480,8 +1481,8 @@ function renderRackTreemap(data, catList){
       <tbody>${data.map(s => `<tr>
         <td>${s.supplier_code ?? '—'}</td><td style="font-weight:600;">${s.supplier_name}</td>
         <td>${s.area_parts}</td><td>${scoreBar(s.share_pct)}</td>
-        <td>${s.total_purchase_net_cost ? Number(s.total_purchase_net_cost).toFixed(2) : '—'}</td>
-        <td>${s.sales_per_sqm !== null ? Number(s.sales_per_sqm).toFixed(3) : '—'}</td>
+        <td>${s.total_purchase_net_cost ? Number(s.total_purchase_net_cost).toFixed(3) + ' د.ك' : '—'}</td>
+        <td>${s.sales_per_sqm !== null ? Number(s.sales_per_sqm).toFixed(3) + ' د.ك' : '—'}</td>
       </tr>`).join('')}</tbody>
     </table></div>`;
   }
@@ -1531,8 +1532,8 @@ function renderRackTreemap(data, catList){
       <thead><tr><th>كود</th><th>المورد</th><th>المساحة</th><th>قيمة المبيعات</th><th>مبيعات/وحدة (قيمة)</th><th>كمية المبيعات</th><th>مبيعات/وحدة (كمية)</th></tr></thead>
       <tbody>${data.map(s => `<tr>
         <td>${s.supplier_code ?? '—'}</td><td style="font-weight:600;">${s.supplier_name}</td><td>${s.area_parts}</td>
-        <td>${Number(s.total_sales_revenue||0).toFixed(2)}</td>
-        <td style="font-weight:700; color:var(--accent);">${s.sales_per_sqm !== null ? Number(s.sales_per_sqm).toFixed(3) : '—'}</td>
+        <td>${Number(s.total_sales_revenue||0).toFixed(3)} د.ك</td>
+        <td style="font-weight:700; color:var(--accent);">${s.sales_per_sqm !== null ? Number(s.sales_per_sqm).toFixed(3) + ' د.ك' : '—'}</td>
         <td>${Number(s.total_qty_sold||0).toFixed(0)}</td>
         <td style="font-weight:700;">${s.qty_per_sqm !== null ? Number(s.qty_per_sqm).toFixed(3) : '—'}</td>
       </tr>`).join('')}</tbody>
@@ -1545,8 +1546,24 @@ function renderRackTreemap(data, catList){
     if(!data || !data.length){ el.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش موردين نشطين بلا مساحة — أو مفيش بيانات مشتريات متاحة لسه.</p>'; return; }
     el.innerHTML = `<div class="card" style="padding:0; overflow-x:auto;"><table class="rpt-table">
       <thead><tr><th>كود</th><th>المورد</th><th>صافي المشتريات</th></tr></thead>
-      <tbody>${data.map(s => `<tr><td>${s.supplier_code ?? '—'}</td><td style="font-weight:600;">${s.supplier_name}</td><td>${Number(s.total_purchase_net_cost).toFixed(2)}</td></tr>`).join('')}</tbody>
+      <tbody>${data.map(s => `<tr><td>${s.supplier_code ?? '—'}</td><td style="font-weight:600;">${s.supplier_name}</td><td>${Number(s.total_purchase_net_cost).toFixed(3)} د.ك</td></tr>`).join('')}</tbody>
     </table></div>`;
+  }
+
+  else if(tab === 'locationmap'){
+    const { data: branches, error } = await sb.from('branches').select('*').order('name');
+    if(error){ el.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+error.message+'</p>'; return; }
+    if(!branches || !branches.length){ el.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش فروع متسجّلة لسه.</p>'; return; }
+
+    el.innerHTML = `
+      <div class="field" style="max-width:280px; margin-bottom:16px;">
+        <label>اختار الفرع</label>
+        <select id="locmap-branch-select">${branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('')}</select>
+      </div>
+      <div id="locmap-body"></div>`;
+
+    $('locmap-branch-select').addEventListener('change', (e) => loadLocationMap(e.target.value));
+    await loadLocationMap(branches[0].id);
   }
 
   else if(tab === 'supplierprofile'){
@@ -1589,6 +1606,89 @@ function renderRackTreemap(data, catList){
       }
     });
   }
+}
+
+/* ============ خريطة الموقع (سحب وإفلات) ============ */
+const RACK_TYPE_ICON = { shelf: 'ti-layout-grid', freezer: 'ti-snowflake', pallet: 'ti-package' };
+async function loadLocationMap(branchId){
+  const body = $('locmap-body');
+  body.innerHTML = '<p style="color:var(--muted); font-size:13px;">جاري التحميل...</p>';
+  const { data, error } = await sb.rpc('get_branch_floor_plan', { p_branch_id: branchId });
+  if(error){ body.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+error.message+'</p>'; return; }
+  if(!data || !data.length){ body.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش أرفف في الفرع ده لسه.</p>'; return; }
+
+  const canEdit = currentRole === 'owner' || currentPerms.can_manage_spaces;
+  const CANVAS_W = 900, CANVAS_H = 520, BOX_W = 84, BOX_H = 54;
+
+  let missingCount = 0;
+  const positioned = data.map((r, i) => {
+    let x = r.position_x, y = r.position_y;
+    if(x === null || y === null){
+      missingCount++;
+      const cols = Math.floor((CANVAS_W - BOX_W) / (BOX_W + 12)) + 1;
+      x = 10 + (i % cols) * (BOX_W + 12);
+      y = 10 + Math.floor(i / cols) * (BOX_H + 12);
+    }
+    return { ...r, x: Number(x), y: Number(y) };
+  });
+
+  body.innerHTML = `
+    ${canEdit ? `<p style="color:var(--muted); font-size:12px; margin-bottom:10px;"><i class="ti ti-hand-move" style="vertical-align:-2px;"></i> اسحب أي رف لمكانه الحقيقي — بيتحفظ تلقائيًا</p>` : ''}
+    ${missingCount ? `<p style="color:var(--amber); font-size:12px; margin-bottom:10px;">${missingCount} رف لسه محتاج ترتيب (متحطّط تلقائيًا مؤقتًا)</p>` : ''}
+    <div class="card" style="padding:10px;">
+      <div id="locmap-canvas" style="position:relative; width:100%; height:${CANVAS_H}px; overflow:auto; background-image:linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px); background-size:24px 24px; border-radius:10px;">
+        <div style="position:relative; width:${CANVAS_W}px; height:${CANVAS_H}px;" id="locmap-inner"></div>
+      </div>
+    </div>`;
+
+  const inner = $('locmap-inner');
+  positioned.forEach(r => {
+    const box = document.createElement('div');
+    const color = r.occ_pct >= 70 ? 'var(--success)' : r.occ_pct >= 30 ? 'var(--amber)' : 'var(--danger)';
+    box.className = 'locmap-box';
+    box.style.cssText = `position:absolute; left:${r.x}px; top:${r.y}px; width:${BOX_W}px; height:${BOX_H}px;
+      background:var(--panel-2); border:1.5px solid ${color}; border-radius:8px; display:flex; flex-direction:column;
+      align-items:center; justify-content:center; font-size:11px; font-weight:700; user-select:none;
+      cursor:${canEdit ? 'grab' : 'pointer'}; touch-action:none;`;
+    box.innerHTML = `<i class="ti ${RACK_TYPE_ICON[r.rack_type]||'ti-layout-grid'}" style="font-size:16px; color:${color};"></i>
+      <span style="direction:ltr; margin-top:2px;">${r.rack_code}</span>
+      <span style="font-size:9.5px; color:var(--muted); font-weight:500;">${r.occ_pct}%</span>`;
+    box.title = `${r.rack_code} — إشغال ${r.occ_pct}%`;
+
+    if(canEdit){
+      let dragging = false, startX, startY, origX, origY;
+      const onDown = (e) => {
+        dragging = true; box.style.cursor = 'grabbing'; box.style.zIndex = 10;
+        const p = e.touches ? e.touches[0] : e;
+        startX = p.clientX; startY = p.clientY;
+        origX = parseFloat(box.style.left); origY = parseFloat(box.style.top);
+        e.preventDefault();
+      };
+      const onMove = (e) => {
+        if(!dragging) return;
+        const p = e.touches ? e.touches[0] : e;
+        const nx = Math.max(0, Math.min(CANVAS_W - BOX_W, origX + (p.clientX - startX)));
+        const ny = Math.max(0, Math.min(CANVAS_H - BOX_H, origY + (p.clientY - startY)));
+        box.style.left = nx + 'px'; box.style.top = ny + 'px';
+      };
+      const onUp = async () => {
+        if(!dragging) return;
+        dragging = false; box.style.cursor = 'grab'; box.style.zIndex = '';
+        const finalX = parseFloat(box.style.left), finalY = parseFloat(box.style.top);
+        const { error } = await sb.rpc('update_rack_position', { p_rack_id: r.rack_id, p_x: finalX, p_y: finalY });
+        if(error) showToast('تعذّر حفظ الموقع: ' + error.message, true);
+      };
+      box.addEventListener('mousedown', onDown);
+      box.addEventListener('touchstart', onDown, { passive:false });
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('touchmove', onMove, { passive:false });
+      document.addEventListener('mouseup', onUp);
+      document.addEventListener('touchend', onUp);
+    } else {
+      box.addEventListener('click', () => showRackDetail(r.rack_code));
+    }
+    inner.appendChild(box);
+  });
 }
 
 async function loadSupplierProfile(supplierId){
@@ -2844,7 +2944,7 @@ async function renderPartDetails(code){
 
   if(p.rental_value !== null && p.rental_value !== undefined){
     $('d-rental-row').style.display = 'flex';
-    $('d-rental').textContent = p.rental_value + ' ريال';
+    $('d-rental').textContent = Number(p.rental_value).toFixed(3) + ' د.ك';
   } else {
     $('d-rental-row').style.display = 'none';
   }
