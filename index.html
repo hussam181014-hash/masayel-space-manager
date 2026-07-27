@@ -1018,7 +1018,20 @@ async function goToSection(target){
     scanShowPage('page-home');
   } else if(target === 'reports-app'){
     showSection('reports-app');
-    await loadReportTab('map');
+    const { data: allowedReports } = await sb.rpc('get_my_allowed_reports');
+    let firstAllowedTab = 'map';
+    if(allowedReports && allowedReports.length){
+      document.querySelectorAll('.report-tab-btn').forEach(btn => {
+        btn.style.display = allowedReports.includes(btn.dataset.tab) ? '' : 'none';
+      });
+      if(!allowedReports.includes('map')) firstAllowedTab = allowedReports[0];
+    } else {
+      document.querySelectorAll('.report-tab-btn').forEach(btn => { btn.style.display = ''; });
+    }
+    document.querySelectorAll('.report-tab-btn').forEach(b => { b.classList.remove('sel'); b.classList.add('ghost'); });
+    const firstBtn = document.querySelector(`[data-tab="${firstAllowedTab}"]`);
+    if(firstBtn){ firstBtn.classList.add('sel'); firstBtn.classList.remove('ghost'); }
+    await loadReportTab(firstAllowedTab);
   } else if(target === 'categories-app'){
     showSection('categories-app');
     await loadCategoriesAdmin();
@@ -1094,17 +1107,27 @@ $('restricted-go-scan').addEventListener('click', () => goToSection('scan-app'))
 /* ============ إدارة صلاحيات المستخدمين ============ */
 $('users-back-menu').addEventListener('click', () => goToSection('dashboard-home'));
 
+const REPORT_TAB_LABELS = {
+  map: 'توزيع الأرفف', locationmap: 'خريطة الموقع', overview: 'نظرة عامة', suppliers: 'نسبة كل مورد',
+  structure: 'التصنيف الهيكلي', categories: 'توزيع التصنيفات', turnover: 'معدل الدوران',
+  nospace: 'موردين بلا مساحة', supplierprofile: 'ملف المورد'
+};
+
 async function loadUsersList(){
   $('users-list').innerHTML = '<p style="color:var(--muted); font-size:13px;">جاري التحميل...</p>';
-  const { data, error } = await sb.rpc('list_users_for_permissions');
+  const [{ data, error }, { data: allBranches }] = await Promise.all([
+    sb.rpc('list_users_for_permissions'),
+    sb.from('branches').select('*').order('name')
+  ]);
   if(error){ $('users-list').innerHTML = '<p style="color:var(--danger); font-size:13px;">تعذّر التحميل: ' + error.message + '</p>'; return; }
   if(!data || !data.length){ $('users-list').innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش مستخدمين.</p>'; return; }
-
 
   $('users-list').innerHTML = data.map(u => {
     if(u.role === 'owner'){
       return `<div class="user-row"><div class="u-email">${u.full_name || u.email}</div><div class="u-role">مالك — كل الصلاحيات تلقائيًا</div></div>`;
     }
+    const branchRestricted = !!(u.allowed_branch_ids && u.allowed_branch_ids.length);
+    const reportsRestricted = !!(u.allowed_reports && u.allowed_reports.length);
     return `
     <div class="user-row" data-id="${u.id}">
       <div class="u-email">${u.full_name || u.email}</div>
@@ -1118,9 +1141,35 @@ async function loadUsersList(){
         <label><input type="checkbox" class="perm-manage" ${u.can_manage_spaces?'checked':''}> إنشاء/تعديل الأرفف</label>
         <label><input type="checkbox" class="perm-scan" ${u.can_scan?'checked':''}> مسح وتحديث الباركود</label>
       </div>
-      <button class="btn small save-perm-btn">حفظ</button>
+
+      <div style="margin-top:10px; padding-top:10px; border-top:1px dashed var(--border);">
+        <label style="display:flex; align-items:center; gap:6px; font-weight:600; font-size:12.5px; cursor:pointer;">
+          <input type="checkbox" class="restrict-branch-toggle" ${branchRestricted?'checked':''}> تقييد الوصول بفروع محددة
+        </label>
+        <div class="branch-checks" style="display:${branchRestricted?'flex':'none'}; flex-wrap:wrap; gap:8px; margin-top:6px;">
+          ${(allBranches||[]).map(b => `<label style="font-size:12px; display:flex; align-items:center; gap:4px;"><input type="checkbox" class="branch-chk" value="${b.id}" ${(u.allowed_branch_ids||[]).includes(b.id)?'checked':''}> ${b.name}</label>`).join('')}
+        </div>
+      </div>
+
+      <div style="margin-top:10px;">
+        <label style="display:flex; align-items:center; gap:6px; font-weight:600; font-size:12.5px; cursor:pointer;">
+          <input type="checkbox" class="restrict-reports-toggle" ${reportsRestricted?'checked':''}> تقييد الوصول بتقارير محددة
+        </label>
+        <div class="report-checks" style="display:${reportsRestricted?'flex':'none'}; flex-wrap:wrap; gap:8px; margin-top:6px;">
+          ${Object.entries(REPORT_TAB_LABELS).map(([key,label]) => `<label style="font-size:12px; display:flex; align-items:center; gap:4px;"><input type="checkbox" class="report-chk" value="${key}" ${(u.allowed_reports||[]).includes(key)?'checked':''}> ${label}</label>`).join('')}
+        </div>
+      </div>
+
+      <button class="btn small save-perm-btn" style="margin-top:12px;">حفظ</button>
     </div>`;
   }).join('');
+
+  document.querySelectorAll('.restrict-branch-toggle').forEach(t => {
+    t.addEventListener('change', (e) => { t.closest('.user-row').querySelector('.branch-checks').style.display = e.target.checked ? 'flex' : 'none'; });
+  });
+  document.querySelectorAll('.restrict-reports-toggle').forEach(t => {
+    t.addEventListener('change', (e) => { t.closest('.user-row').querySelector('.report-checks').style.display = e.target.checked ? 'flex' : 'none'; });
+  });
 
   document.querySelectorAll('[data-approve]').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -1143,9 +1192,14 @@ async function loadUsersList(){
       const canView = row.querySelector('.perm-view').checked;
       const canManage = row.querySelector('.perm-manage').checked;
       const canScanPerm = row.querySelector('.perm-scan').checked;
+      const branchRestrict = row.querySelector('.restrict-branch-toggle').checked;
+      const reportsRestrict = row.querySelector('.restrict-reports-toggle').checked;
+      const allowedBranches = branchRestrict ? Array.from(row.querySelectorAll('.branch-chk:checked')).map(c => c.value) : null;
+      const allowedReports = reportsRestrict ? Array.from(row.querySelectorAll('.report-chk:checked')).map(c => c.value) : null;
       btn.disabled = true;
       const { error } = await sb.rpc('update_user_permissions', {
-        p_user_id: userId, p_can_view_spaces: canView, p_can_manage_spaces: canManage, p_can_scan: canScanPerm
+        p_user_id: userId, p_can_view_spaces: canView, p_can_manage_spaces: canManage, p_can_scan: canScanPerm,
+        p_allowed_branch_ids: allowedBranches, p_allowed_reports: allowedReports
       });
       btn.disabled = false;
       if(error){ showToast('فشل الحفظ: ' + error.message, true); return; }
@@ -1613,7 +1667,7 @@ function renderRackTreemap(data, catList){
   }
 
   else if(tab === 'locationmap'){
-    const { data: branches, error } = await sb.from('branches').select('*').order('name');
+    const { data: branches, error } = await sb.rpc('get_my_allowed_branches');
     if(error){ el.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+error.message+'</p>'; return; }
     if(!branches || !branches.length){ el.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش فروع متسجّلة لسه.</p>'; return; }
 
@@ -1990,7 +2044,7 @@ async function openRackEditModal(rackCode){
   if(rackErr || !rackRow){ showToast('تعذّر تحميل بيانات الرف.', true); return; }
 
   const [{ data: branches }, { data: categories }] = await Promise.all([
-    sb.from('branches').select('*').order('name'),
+    sb.rpc('get_my_allowed_branches'),
     sb.from('categories').select('*').order('name')
   ]);
 
@@ -2422,7 +2476,7 @@ function openPartEditor(p, rackCode){
 
 /* ================= الفروع والطوابق ================= */
 async function loadBranches(){
-  const { data, error } = await sb.from('branches').select('*').order('name');
+  const { data, error } = await sb.rpc('get_my_allowed_branches');
   if(error){ showToast('خطأ في تحميل الفروع: ' + error.message, true); return; }
   const sel = $('f-branch');
   sel.innerHTML = '<option value="">اختر فرع...</option>' + (data||[]).map(b => `<option value="${b.id}">${b.name} (${b.code})</option>`).join('');
