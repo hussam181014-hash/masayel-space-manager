@@ -1620,6 +1620,7 @@ function renderRackTreemap(data, catList){
 
 /* ============ خريطة الموقع (سحب وإفلات) ============ */
 const RACK_TYPE_ICON = { shelf: 'ti-layout-grid', freezer: 'ti-snowflake', pallet: 'ti-package' };
+const RACK_TYPE_ACCENT = { shelf: '#4f8ff0', freezer: '#2dd4bf', pallet: '#c97f3d' };
 let locmapAllData = [];
 let locmapZoom = 1;
 const LOCMAP_GRID = 24;
@@ -1690,15 +1691,16 @@ function renderLocationMap(){
   positioned.forEach(r => {
     const box = document.createElement('div');
     const color = r.occ_pct >= 70 ? 'var(--success)' : r.occ_pct >= 30 ? 'var(--amber)' : 'var(--danger)';
+    const typeColor = RACK_TYPE_ACCENT[r.rack_type] || 'var(--muted)';
     box.className = 'locmap-box';
     box.dataset.rackCode = r.rack_code;
     box.style.cssText = `position:absolute; left:${r.x}px; top:${r.y}px; width:${r.w}px; height:${r.h}px;
-      background:var(--panel-2); border:1.5px solid ${color}; border-radius:8px; display:flex; flex-direction:column;
+      background:var(--panel-2); border:1.5px solid ${color}; border-top:4px solid ${typeColor}; border-radius:8px; display:flex; flex-direction:column;
       align-items:center; justify-content:center; font-size:11px; font-weight:700; user-select:none; transition:box-shadow .2s;
       cursor:${canEdit ? 'grab' : 'pointer'}; touch-action:none;`;
-    box.innerHTML = `<i class="ti ${RACK_TYPE_ICON[r.rack_type]||'ti-layout-grid'}" style="font-size:16px; color:${color};"></i>
+    box.innerHTML = `<i class="ti ${RACK_TYPE_ICON[r.rack_type]||'ti-layout-grid'}" style="font-size:16px; color:${typeColor};"></i>
       <span style="direction:ltr; margin-top:2px;">${r.rack_code}</span>
-      <span style="font-size:9.5px; color:var(--muted); font-weight:500;">${r.occ_pct}%</span>`;
+      <span style="font-size:9.5px; color:${color}; font-weight:700;">${r.occ_pct}%</span>`;
     box.title = `${r.rack_code} — إشغال ${r.occ_pct}% (دبل كليك لعرض التفاصيل)`;
     box.addEventListener('dblclick', () => showRackDetail(r.rack_code));
 
@@ -1738,12 +1740,16 @@ function renderLocationMap(){
 
       const handle = document.createElement('div');
       handle.className = 'locmap-resize-handle';
-      handle.style.cssText = `position:absolute; bottom:-3px; left:-3px; width:12px; height:12px; border-radius:3px;
-        background:var(--accent); cursor:nwse-resize; touch-action:none;`;
+      handle.style.cssText = `position:absolute; bottom:1px; left:1px; width:14px; height:14px;
+        cursor:nwse-resize; touch-action:none; opacity:0; transition:opacity .15s;
+        background-image:linear-gradient(135deg, transparent 0%, transparent 40%, var(--accent) 40%, var(--accent) 55%, transparent 55%, transparent 70%, var(--accent) 70%, var(--accent) 85%, transparent 85%);`;
       handle.title = 'اسحب لتغيير أبعاد الرف';
+      box.addEventListener('mouseenter', () => { handle.style.opacity = '1'; });
+      box.addEventListener('mouseleave', () => { if(!resizingActive) handle.style.opacity = '0'; });
+      let resizingActive = false;
       let resizing = false, rStartX, rStartY, origW, origH;
       const onResizeDown = (e) => {
-        resizing = true; box.style.zIndex = 10;
+        resizing = true; resizingActive = true; box.style.zIndex = 10;
         const p = e.touches ? e.touches[0] : e;
         rStartX = p.clientX; rStartY = p.clientY;
         origW = parseFloat(box.style.width); origH = parseFloat(box.style.height);
@@ -1758,7 +1764,7 @@ function renderLocationMap(){
       };
       const onResizeUp = async () => {
         if(!resizing) return;
-        resizing = false; box.style.zIndex = '';
+        resizing = false; resizingActive = false; box.style.zIndex = ''; handle.style.opacity = '0';
         const finalW = Math.round(parseFloat(box.style.width) / 4) * 4;
         const finalH = Math.round(parseFloat(box.style.height) / 4) * 4;
         box.style.width = finalW + 'px'; box.style.height = finalH + 'px';
