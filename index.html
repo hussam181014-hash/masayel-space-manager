@@ -925,16 +925,20 @@ $('app-modal-overlay').addEventListener('click', (e) => { if(e.target.id === 'ap
 document.addEventListener('keydown', (e) => { if(e.key === 'Escape') closeModal(); });
 
 /* ================= AUTH ================= */
-$('auth-toggle').addEventListener('click', () => {
+function toggleAuthMode(){
   isSignup = !isSignup;
   $('auth-title').textContent = isSignup ? 'إنشاء حساب جديد' : 'تسجيل الدخول';
   $('auth-sub').textContent = isSignup ? 'أنشئ حسابك — الصلاحية الافتراضية "مساحات فقط"، ومحتاج موافقة المالك قبل الاستخدام.' : 'ادخل بحسابك للمتابعة.';
   $('auth-submit').textContent = isSignup ? 'إنشاء الحساب' : 'دخول';
   $('auth-name-field').style.display = isSignup ? 'block' : 'none';
   $('auth-phone-field').style.display = isSignup ? 'block' : 'none';
-  $('auth-switch').innerHTML = isSignup ? 'عندك حساب بالفعل؟ <a id="auth-toggle2" style="color:var(--accent);cursor:pointer;font-weight:600;">سجّل دخول</a>' : 'مفيش حساب لسه؟ <a id="auth-toggle2" style="color:var(--accent);cursor:pointer;font-weight:600;">أنشئ حساب جديد</a>';
-  document.getElementById('auth-toggle2').addEventListener('click', () => $('auth-toggle').click());
-});
+  $('auth-err').style.display = 'none';
+  $('auth-switch').innerHTML = isSignup
+    ? 'عندك حساب بالفعل؟ <a style="color:var(--accent);cursor:pointer;font-weight:600;">سجّل دخول</a>'
+    : 'مفيش حساب لسه؟ <a style="color:var(--accent);cursor:pointer;font-weight:600;">أنشئ حساب جديد</a>';
+}
+$('auth-toggle').addEventListener('click', toggleAuthMode);
+$('auth-switch').addEventListener('click', (e) => { if(e.target.tagName === 'A') toggleAuthMode(); });
 
 $('auth-submit').addEventListener('click', async () => {
   const email = $('auth-email').value.trim();
@@ -952,6 +956,11 @@ $('auth-submit').addEventListener('click', async () => {
     }
     else { res = await sb.auth.signInWithPassword({ email, password }); }
     if(res.error) throw res.error;
+    if(isSignup && res.data.user && res.data.user.identities && res.data.user.identities.length === 0){
+      showAuthErr('في حساب مسجّل بالإيميل ده بالفعل — جرب تسجّل دخول بدل ما تنشئ حساب جديد.');
+      $('auth-submit').disabled = false;
+      return;
+    }
     if(isSignup && res.data.user && !res.data.session){
       showToast('تم إنشاء الحساب — جرب تسجيل الدخول دلوقتي.');
       $('auth-submit').disabled = false;
