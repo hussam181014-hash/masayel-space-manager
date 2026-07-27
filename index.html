@@ -817,6 +817,10 @@
 
 <div class="toast" id="toast"></div>
 
+<div id="app-modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:200; align-items:center; justify-content:center; padding:20px;">
+  <div id="app-modal-box" style="background:var(--panel); border-radius:var(--radius-card); max-width:460px; width:100%; max-height:88vh; overflow-y:auto; box-shadow:var(--shadow);"></div>
+</div>
+
 <script>
 const SUPABASE_URL = "https://pvccdyevmjbxvuvlmvir.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_e-FSgP2rdrE7eq7ksTOiMQ_zWvYI4kf";
@@ -893,6 +897,18 @@ function showToast(msg, isErr=false){
   t.style.display = 'block';
   setTimeout(()=> t.style.display='none', 3800);
 }
+
+function openModal(html){
+  $('app-modal-box').innerHTML = html;
+  const overlay = $('app-modal-overlay');
+  overlay.style.display = 'flex';
+}
+function closeModal(){
+  $('app-modal-overlay').style.display = 'none';
+  $('app-modal-box').innerHTML = '';
+}
+$('app-modal-overlay').addEventListener('click', (e) => { if(e.target.id === 'app-modal-overlay') closeModal(); });
+document.addEventListener('keydown', (e) => { if(e.key === 'Escape') closeModal(); });
 
 /* ================= AUTH ================= */
 $('auth-toggle').addEventListener('click', () => {
@@ -1939,15 +1955,15 @@ function showLevelPanel(parts, title, rackCode){
 }
 
 function openPartEditor(p, rackCode){
-  const box = $('rack-part-editor');
-  box.innerHTML = `
-    <div class="card" style="margin-top:14px;">
-      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+  openModal(`
+    <div style="padding:20px;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
         <div>
-          <div style="font-weight:700; direction:ltr; text-align:right;">${p.part_code}</div>
+          <div style="font-weight:700; direction:ltr; text-align:right; font-family:var(--font-mono);">${p.part_code}</div>
           <div style="color:var(--muted); font-size:12px; margin-top:3px;">${p.unit_type}${p.category_name ? ' — ' + p.category_name : ''}</div>
+          ${p.supplier_name ? `<div style="color:var(--success); font-size:12.5px; margin-top:4px; font-weight:600;">المؤجّر حاليًا: ${p.supplier_name}</div>` : ''}
         </div>
-        <a id="close-part-editor" style="color:var(--muted); cursor:pointer; font-size:13px;">إغلاق ✕</a>
+        <a id="close-part-editor" style="color:var(--muted); cursor:pointer; font-size:18px; line-height:1;">✕</a>
       </div>
       <div class="grid2">
         <div class="field"><label>الحالة</label>
@@ -1965,12 +1981,12 @@ function openPartEditor(p, rackCode){
       </div>
       <button class="btn small" id="rpe-save">حفظ التعديل</button>
       <div class="err" id="rpe-err"></div>
-    </div>`;
+    </div>`);
 
   loadEditCategoriesFor('rpe-category', 'rpe-subcategory', p.category_id, p.subcategory_id);
   $('rpe-category').addEventListener('change', (e) => loadEditSubcategoriesFor('rpe-category', 'rpe-subcategory', e.target.value, null));
 
-  $('close-part-editor').addEventListener('click', () => { box.innerHTML = ''; });
+  $('close-part-editor').addEventListener('click', closeModal);
   $('rpe-save').addEventListener('click', async () => {
     $('rpe-err').style.display = 'none';
     const status = $('rpe-status').value;
@@ -1986,6 +2002,7 @@ function openPartEditor(p, rackCode){
     $('rpe-save').disabled = false;
     if(error){ $('rpe-err').textContent = error.message; $('rpe-err').style.display = 'block'; return; }
     showToast('تم الحفظ.');
+    closeModal();
     await showRackDetail(rackCode);
   });
 }
