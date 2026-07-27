@@ -1653,7 +1653,8 @@ async function loadLocationMap(branchId){
     box.innerHTML = `<i class="ti ${RACK_TYPE_ICON[r.rack_type]||'ti-layout-grid'}" style="font-size:16px; color:${color};"></i>
       <span style="direction:ltr; margin-top:2px;">${r.rack_code}</span>
       <span style="font-size:9.5px; color:var(--muted); font-weight:500;">${r.occ_pct}%</span>`;
-    box.title = `${r.rack_code} — إشغال ${r.occ_pct}%`;
+    box.title = `${r.rack_code} — إشغال ${r.occ_pct}% (دبل كليك لعرض التفاصيل)`;
+    box.addEventListener('dblclick', () => showRackDetail(r.rack_code));
 
     if(canEdit){
       let dragging = false, startX, startY, origX, origY;
