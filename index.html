@@ -1843,19 +1843,49 @@ function renderFreezerBColumns(data, rackCode, grid){
     return wrap;
   }
 
+  function makeGondolaCard(label, parts){
+    const sorted = [...parts].sort((a,b) => a.level - b.level);
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'background:var(--panel-2); border:1px solid var(--border); border-radius:16px; padding:14px; display:flex; gap:14px; flex-wrap:wrap;';
+
+    const titleRow = document.createElement('div');
+    titleRow.style.cssText = 'width:100%; display:flex; align-items:center; gap:8px; font-weight:700; font-size:14px; margin-bottom:4px;';
+    titleRow.innerHTML = `<span style="width:7px; height:7px; border-radius:50%; background:${aggDot(parts)}; display:inline-block;"></span> ${label}`;
+    wrap.appendChild(titleRow);
+
+    const illus = document.createElement('div');
+    illus.style.cssText = 'min-width:140px; border:2px solid var(--border-strong); border-radius:12px; overflow:hidden; background:var(--panel); display:flex; flex-direction:column;';
+    sorted.forEach((p, i) => {
+      const row = document.createElement('div');
+      row.style.cssText = `display:flex; align-items:center; justify-content:space-between; padding:8px 10px; ${i < sorted.length-1 ? 'border-bottom:1px dashed var(--border-strong);' : ''}`;
+      const lbl = document.createElement('span');
+      lbl.style.cssText = 'font-size:11px; color:var(--muted); font-weight:600;';
+      lbl.textContent = 'L0' + p.level;
+      row.appendChild(lbl);
+      row.appendChild(makeSlot(p));
+      illus.appendChild(row);
+    });
+    wrap.appendChild(illus);
+
+    const info = document.createElement('div');
+    info.style.cssText = 'min-width:140px; display:flex; flex-direction:column; gap:6px; font-size:12.5px;';
+    const uniqueSuppliers = Array.from(new Set(parts.filter(p => p.supplier_name).map(p => p.supplier_name)));
+    info.innerHTML = `
+      <div><span style="color:var(--muted);">الإشغال: </span><b style="color:${aggPct(parts) > 50 ? 'var(--success)' : 'var(--amber)'};">${aggPct(parts)}%</b></div>
+      <div><span style="color:var(--muted);">المورد: </span><b>${uniqueSuppliers.length ? uniqueSuppliers.join('، ') : '—'}</b></div>
+      <div><span style="color:var(--muted);">عدد الوحدات: </span><b>${parts.length} وحدة</b></div>`;
+    wrap.appendChild(info);
+
+    return wrap;
+  }
+
   if(frontEndcap.length || partNumsFront.length){
     const h = document.createElement('div');
     h.style.cssText = 'font-size:12.5px; font-weight:700; color:var(--muted); margin-bottom:2px;';
     h.textContent = hasBack ? 'الوجه الأمامي' : 'القواطع';
     grid.appendChild(h);
   }
-  if(frontEndcap.length){
-    const c = document.createElement('div');
-    c.style.cssText = 'background:var(--panel-2); border:1.5px solid var(--amber); border-radius:12px; padding:10px 14px; cursor:pointer; display:inline-flex; align-items:center; gap:8px; font-weight:700; font-size:13px;';
-    c.innerHTML = `<span style="width:7px; height:7px; border-radius:50%; background:${aggDot(frontEndcap)};"></span> جندولة أمامية`;
-    c.addEventListener('click', () => showLevelPanel(frontEndcap, 'الجندولة الأمامية', rackCode));
-    grid.appendChild(c);
-  }
+  if(frontEndcap.length) grid.appendChild(makeGondolaCard('جندولة أمامية', frontEndcap));
   partNumsFront.forEach(pn => grid.appendChild(makeFreezerCard(pn, frontCols.filter(p => p.part_num === pn))));
 
   if(hasBack){
@@ -1865,13 +1895,7 @@ function renderFreezerBColumns(data, rackCode, grid){
     grid.appendChild(h2);
     partNumsBack.forEach(pn => grid.appendChild(makeFreezerCard(pn, backCols.filter(p => p.part_num === pn))));
   }
-  if(backEndcap.length){
-    const c = document.createElement('div');
-    c.style.cssText = 'background:var(--panel-2); border:1.5px solid var(--amber); border-radius:12px; padding:10px 14px; cursor:pointer; display:inline-flex; align-items:center; gap:8px; font-weight:700; font-size:13px;';
-    c.innerHTML = `<span style="width:7px; height:7px; border-radius:50%; background:${aggDot(backEndcap)};"></span> جندولة خلفية`;
-    c.addEventListener('click', () => showLevelPanel(backEndcap, 'الجندولة الخلفية', rackCode));
-    grid.appendChild(c);
-  }
+  if(backEndcap.length) grid.appendChild(makeGondolaCard('جندولة خلفية', backEndcap));
 }
 
 
