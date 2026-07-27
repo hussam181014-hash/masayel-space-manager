@@ -1654,13 +1654,14 @@ function renderLocationMap(){
   let missingCount = 0;
   const positioned = data.map((r, i) => {
     let x = r.position_x, y = r.position_y;
+    const w = Number(r.position_w) || BOX_W, h = Number(r.position_h) || BOX_H;
     if(x === null || y === null){
       missingCount++;
       const cols = Math.floor((CANVAS_W - BOX_W) / (BOX_W + 12)) + 1;
       x = 10 + (i % cols) * (BOX_W + 12);
       y = 10 + Math.floor(i / cols) * (BOX_H + 12);
     }
-    return { ...r, x: Number(x), y: Number(y) };
+    return { ...r, x: Number(x), y: Number(y), w, h };
   });
 
   body.innerHTML = `
@@ -1691,7 +1692,7 @@ function renderLocationMap(){
     const color = r.occ_pct >= 70 ? 'var(--success)' : r.occ_pct >= 30 ? 'var(--amber)' : 'var(--danger)';
     box.className = 'locmap-box';
     box.dataset.rackCode = r.rack_code;
-    box.style.cssText = `position:absolute; left:${r.x}px; top:${r.y}px; width:${BOX_W}px; height:${BOX_H}px;
+    box.style.cssText = `position:absolute; left:${r.x}px; top:${r.y}px; width:${r.w}px; height:${r.h}px;
       background:var(--panel-2); border:1.5px solid ${color}; border-radius:8px; display:flex; flex-direction:column;
       align-items:center; justify-content:center; font-size:11px; font-weight:700; user-select:none; transition:box-shadow .2s;
       cursor:${canEdit ? 'grab' : 'pointer'}; touch-action:none;`;
@@ -1704,6 +1705,7 @@ function renderLocationMap(){
     if(canEdit){
       let dragging = false, startX, startY, origX, origY;
       const onDown = (e) => {
+        if(e.target.classList.contains('locmap-resize-handle')) return;
         dragging = true; box.style.cursor = 'grabbing'; box.style.zIndex = 10;
         const p = e.touches ? e.touches[0] : e;
         startX = p.clientX; startY = p.clientY;
@@ -1713,8 +1715,9 @@ function renderLocationMap(){
       const onMove = (e) => {
         if(!dragging) return;
         const p = e.touches ? e.touches[0] : e;
-        const nx = Math.max(0, Math.min(CANVAS_W - BOX_W, origX + (p.clientX - startX) / locmapZoom));
-        const ny = Math.max(0, Math.min(CANVAS_H - BOX_H, origY + (p.clientY - startY) / locmapZoom));
+        const bw = parseFloat(box.style.width), bh = parseFloat(box.style.height);
+        const nx = Math.max(0, Math.min(CANVAS_W - bw, origX + (p.clientX - startX) / locmapZoom));
+        const ny = Math.max(0, Math.min(CANVAS_H - bh, origY + (p.clientY - startY) / locmapZoom));
         box.style.left = nx + 'px'; box.style.top = ny + 'px';
       };
       const onUp = async () => {
@@ -1732,6 +1735,46 @@ function renderLocationMap(){
       document.addEventListener('touchmove', onMove, { passive:false });
       document.addEventListener('mouseup', onUp);
       document.addEventListener('touchend', onUp);
+
+      const handle = document.createElement('div');
+      handle.className = 'locmap-resize-handle';
+      handle.style.cssText = `position:absolute; bottom:-3px; left:-3px; width:12px; height:12px; border-radius:3px;
+        background:var(--accent); cursor:nwse-resize; touch-action:none;`;
+      handle.title = 'اسحب لتغيير أبعاد الرف';
+      let resizing = false, rStartX, rStartY, origW, origH;
+      const onResizeDown = (e) => {
+        resizing = true; box.style.zIndex = 10;
+        const p = e.touches ? e.touches[0] : e;
+        rStartX = p.clientX; rStartY = p.clientY;
+        origW = parseFloat(box.style.width); origH = parseFloat(box.style.height);
+        e.stopPropagation(); e.preventDefault();
+      };
+      const onResizeMove = (e) => {
+        if(!resizing) return;
+        const p = e.touches ? e.touches[0] : e;
+        const nw = Math.max(40, Math.min(400, origW - (p.clientX - rStartX) / locmapZoom));
+        const nh = Math.max(30, Math.min(300, origH + (p.clientY - rStartY) / locmapZoom));
+        box.style.width = nw + 'px'; box.style.height = nh + 'px';
+      };
+      const onResizeUp = async () => {
+        if(!resizing) return;
+        resizing = false; box.style.zIndex = '';
+        const finalW = Math.round(parseFloat(box.style.width) / 4) * 4;
+        const finalH = Math.round(parseFloat(box.style.height) / 4) * 4;
+        box.style.width = finalW + 'px'; box.style.height = finalH + 'px';
+        const { error } = await sb.rpc('update_rack_position', {
+          p_rack_id: r.rack_id, p_x: parseFloat(box.style.left), p_y: parseFloat(box.style.top),
+          p_w: finalW, p_h: finalH
+        });
+        if(error) showToast('تعذّر حفظ الأبعاد: ' + error.message, true);
+      };
+      handle.addEventListener('mousedown', onResizeDown);
+      handle.addEventListener('touchstart', onResizeDown, { passive:false });
+      document.addEventListener('mousemove', onResizeMove);
+      document.addEventListener('touchmove', onResizeMove, { passive:false });
+      document.addEventListener('mouseup', onResizeUp);
+      document.addEventListener('touchend', onResizeUp);
+      box.appendChild(handle);
     } else {
       box.addEventListener('click', () => showRackDetail(r.rack_code));
     }
