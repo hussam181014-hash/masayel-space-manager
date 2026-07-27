@@ -397,7 +397,9 @@
   <div class="card">
     <h2 id="auth-title">تسجيل الدخول</h2>
     <p class="sub" id="auth-sub">ادخل بحسابك للمتابعة إلى نظام إدارة المساحات.</p>
+    <div class="field" id="auth-name-field" style="display:none;"><label>الاسم بالكامل</label><input type="text" id="auth-fullname"></div>
     <div class="field"><label>البريد الإلكتروني</label><input type="email" id="auth-email"></div>
+    <div class="field" id="auth-phone-field" style="display:none;"><label>رقم التليفون</label><input type="tel" id="auth-phone" style="direction:ltr;" placeholder="+965XXXXXXXX"></div>
     <div class="field"><label>كلمة المرور</label><input type="password" id="auth-pass"></div>
     <button class="btn" id="auth-submit">دخول</button>
     <div class="err" id="auth-err"></div>
@@ -926,8 +928,10 @@ document.addEventListener('keydown', (e) => { if(e.key === 'Escape') closeModal(
 $('auth-toggle').addEventListener('click', () => {
   isSignup = !isSignup;
   $('auth-title').textContent = isSignup ? 'إنشاء حساب جديد' : 'تسجيل الدخول';
-  $('auth-sub').textContent = isSignup ? 'أنشئ حسابك — الصلاحية الافتراضية "مساحات فقط".' : 'ادخل بحسابك للمتابعة.';
+  $('auth-sub').textContent = isSignup ? 'أنشئ حسابك — الصلاحية الافتراضية "مساحات فقط"، ومحتاج موافقة المالك قبل الاستخدام.' : 'ادخل بحسابك للمتابعة.';
   $('auth-submit').textContent = isSignup ? 'إنشاء الحساب' : 'دخول';
+  $('auth-name-field').style.display = isSignup ? 'block' : 'none';
+  $('auth-phone-field').style.display = isSignup ? 'block' : 'none';
   $('auth-switch').innerHTML = isSignup ? 'عندك حساب بالفعل؟ <a id="auth-toggle2" style="color:var(--accent);cursor:pointer;font-weight:600;">سجّل دخول</a>' : 'مفيش حساب لسه؟ <a id="auth-toggle2" style="color:var(--accent);cursor:pointer;font-weight:600;">أنشئ حساب جديد</a>';
   document.getElementById('auth-toggle2').addEventListener('click', () => $('auth-toggle').click());
 });
@@ -935,12 +939,17 @@ $('auth-toggle').addEventListener('click', () => {
 $('auth-submit').addEventListener('click', async () => {
   const email = $('auth-email').value.trim();
   const password = $('auth-pass').value;
+  const fullName = $('auth-fullname').value.trim();
+  const phone = $('auth-phone').value.trim();
   $('auth-err').style.display = 'none';
   if(!email || !password){ showAuthErr('اكتب البريد وكلمة المرور.'); return; }
+  if(isSignup && (!fullName || !phone)){ showAuthErr('اكتب اسمك بالكامل ورقم التليفون.'); return; }
   $('auth-submit').disabled = true;
   try{
     let res;
-    if(isSignup){ res = await sb.auth.signUp({ email, password }); }
+    if(isSignup){
+      res = await sb.auth.signUp({ email, password, options: { data: { full_name: fullName, phone } } });
+    }
     else { res = await sb.auth.signInWithPassword({ email, password }); }
     if(res.error) throw res.error;
     if(isSignup && res.data.user && !res.data.session){
@@ -1012,8 +1021,11 @@ async function goToSection(target){
   }
 }
 
+let currentUserFullName = '';
+
 function applyPermissionVisibility(){
-  $('sidebar-email').textContent = currentUserEmail;
+  $('sidebar-email').textContent = currentUserFullName || currentUserEmail;
+  $('sidebar-email').title = currentUserEmail;
   $('sidebar-role').textContent = currentRole === 'owner' ? 'مالك — عرض كامل' : 'صلاحيات محدودة';
   const showUsers = currentRole === 'owner';
   const showCategories = currentRole === 'owner' || currentPerms.can_manage_spaces;
@@ -1028,12 +1040,13 @@ async function enterApp(){
   if(!user) return;
   currentUserEmail = user.email;
 
-  const { data: profile } = await sb.from('profiles').select('role, is_approved, can_view_spaces, can_manage_spaces, can_scan').eq('id', user.id).single();
+  const { data: profile } = await sb.from('profiles').select('role, full_name, is_approved, can_view_spaces, can_manage_spaces, can_scan').eq('id', user.id).single();
+  currentUserFullName = profile ? profile.full_name : '';
 
   if(profile && !profile.is_approved){
     $('auth-screen').style.display = 'none';
     $('pending-approval-screen').style.display = 'block';
-    $('pending-email').textContent = currentUserEmail;
+    $('pending-email').textContent = currentUserFullName || currentUserEmail;
     return;
   }
 
@@ -1081,11 +1094,12 @@ async function loadUsersList(){
 
   $('users-list').innerHTML = data.map(u => {
     if(u.role === 'owner'){
-      return `<div class="user-row"><div class="u-email">${u.email}</div><div class="u-role">مالك — كل الصلاحيات تلقائيًا</div></div>`;
+      return `<div class="user-row"><div class="u-email">${u.full_name || u.email}</div><div class="u-role">مالك — كل الصلاحيات تلقائيًا</div></div>`;
     }
     return `
     <div class="user-row" data-id="${u.id}">
-      <div class="u-email">${u.email}</div>
+      <div class="u-email">${u.full_name || u.email}</div>
+      <div style="font-size:11.5px; color:var(--muted); margin-top:2px;">${u.email}${u.phone ? ' · ' + u.phone : ''}</div>
       <div class="u-role">${u.is_approved ? '<span style="color:var(--success);">✓ مفعّل</span>' : '<span style="color:var(--danger);">بانتظار الموافقة</span>'}</div>
       <div style="margin:8px 0;">
         <button class="btn tiny ${u.is_approved ? 'ghost' : ''}" data-approve="true">${u.is_approved ? 'إلغاء التفعيل' : 'الموافقة على الحساب'}</button>
