@@ -1710,17 +1710,42 @@ function renderRackPartsGrid(data, rackCode){
   const backEndcap = data.filter(p => p.is_endcap && p.unit_type === 'جندولة خلفية').sort((a,b)=>a.level-b.level);
 
   const numBoxStyle = 'width:44px; height:44px; display:flex; align-items:center; justify-content:center; border-radius:8px; cursor:pointer; font-size:13px; font-weight:700; background:var(--panel-2); border:1.5px solid var(--border); margin:2px;';
-  const flankStyle = 'width:48px; display:flex; align-items:center; justify-content:center; border-radius:8px; cursor:pointer; font-size:12px; font-weight:700; background:var(--amber-dim); color:var(--amber); border:1.5px solid var(--amber);';
 
-  grid.style.cssText = 'display:flex; align-items:stretch; gap:6px; direction:rtl; overflow-x:auto; padding:4px 0;';
+  grid.style.cssText = 'display:flex; align-items:stretch; gap:8px; direction:rtl; overflow-x:auto; padding:4px 0;';
   grid.innerHTML = '';
 
-  if(frontEndcap.length){
+  function aggDotShelf(parts){
+    if(parts.some(p => p.status === 'occupied')) return 'var(--success)';
+    if(parts.some(p => p.status === 'maintenance')) return 'var(--amber)';
+    return 'var(--muted)';
+  }
+
+  function makeGondolaFlank(label, parts){
+    const sorted = [...parts].sort((a,b) => a.level - b.level);
+    const anyPremium = parts.some(p => p.tier === 'premium');
     const flank = document.createElement('div');
-    flank.style.cssText = flankStyle;
-    flank.textContent = 'أمامية';
-    flank.addEventListener('click', () => showLevelPanel(frontEndcap, 'الجندولة الأمامية', rackCode));
-    grid.appendChild(flank);
+    flank.style.cssText = `display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; width:64px;
+      border-radius:10px; padding:8px 6px; cursor:pointer; background:var(--panel-2); border:1.5px solid ${anyPremium ? 'var(--amber)' : 'var(--border)'};`;
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'font-size:11px; font-weight:700; color:var(--amber); text-align:center;';
+    lbl.textContent = label;
+    flank.appendChild(lbl);
+    const dotsGrid = document.createElement('div');
+    dotsGrid.style.cssText = 'display:grid; grid-template-columns:1fr 1fr; gap:3px;';
+    sorted.forEach(p => {
+      const dot = document.createElement('span');
+      const c = p.status === 'occupied' ? 'var(--success)' : p.status === 'maintenance' ? 'var(--amber)' : 'var(--muted)';
+      dot.style.cssText = `width:9px; height:9px; border-radius:50%; background:${c};`;
+      dotsGrid.appendChild(dot);
+    });
+    flank.appendChild(dotsGrid);
+    flank.title = `${label} — إشغال ${Math.round(parts.filter(p=>p.status==='occupied').length/parts.length*100)}%`;
+    flank.addEventListener('click', () => showLevelPanel(sorted, label, rackCode));
+    return flank;
+  }
+
+  if(frontEndcap.length){
+    grid.appendChild(makeGondolaFlank('أمامية', frontEndcap));
   }
 
   const colsWrap = document.createElement('div');
@@ -1755,11 +1780,7 @@ function renderRackPartsGrid(data, rackCode){
   grid.appendChild(colsWrap);
 
   if(backEndcap.length){
-    const flank = document.createElement('div');
-    flank.style.cssText = flankStyle;
-    flank.textContent = 'خلفية';
-    flank.addEventListener('click', () => showLevelPanel(backEndcap, 'الجندولة الخلفية', rackCode));
-    grid.appendChild(flank);
+    grid.appendChild(makeGondolaFlank('خلفية', backEndcap));
   }
 }
 
