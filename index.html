@@ -1556,9 +1556,19 @@ function renderRackTreemap(data, catList){
     if(!branches || !branches.length){ el.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش فروع متسجّلة لسه.</p>'; return; }
 
     el.innerHTML = `
-      <div class="field" style="max-width:280px; margin-bottom:16px;">
-        <label>اختار الفرع</label>
-        <select id="locmap-branch-select">${branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('')}</select>
+      <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
+        <div class="field" style="max-width:220px; margin-bottom:0;">
+          <label>اختار الفرع</label>
+          <select id="locmap-branch-select">${branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('')}</select>
+        </div>
+        <div class="field" style="max-width:220px; margin-bottom:0;">
+          <label>القطاع / الطابق</label>
+          <select id="locmap-floor-select"><option value="">كل القطاعات</option></select>
+        </div>
+        <div class="field" style="flex:1; min-width:180px; margin-bottom:0;">
+          <label>دوّر على رف</label>
+          <input type="text" id="locmap-search" placeholder="مثال: 20-G001" style="direction:ltr;">
+        </div>
       </div>
       <div id="locmap-body"></div>`;
 
@@ -1610,6 +1620,10 @@ function renderRackTreemap(data, catList){
 
 /* ============ خريطة الموقع (سحب وإفلات) ============ */
 const RACK_TYPE_ICON = { shelf: 'ti-layout-grid', freezer: 'ti-snowflake', pallet: 'ti-package' };
+let locmapAllData = [];
+let locmapZoom = 1;
+const LOCMAP_GRID = 24;
+
 async function loadLocationMap(branchId){
   const body = $('locmap-body');
   body.innerHTML = '<p style="color:var(--muted); font-size:13px;">جاري التحميل...</p>';
@@ -1617,8 +1631,25 @@ async function loadLocationMap(branchId){
   if(error){ body.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+error.message+'</p>'; return; }
   if(!data || !data.length){ body.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش أرفف في الفرع ده لسه.</p>'; return; }
 
+  locmapAllData = data;
+  locmapZoom = 1;
+
+  const floors = Array.from(new Map(data.filter(r => r.floor_id).map(r => [r.floor_id, r.floor_name])).entries());
+  const floorSelect = $('locmap-floor-select');
+  floorSelect.innerHTML = '<option value="">كل القطاعات</option>' + floors.map(([id,name]) => `<option value="${id}">${name}</option>`).join('');
+  floorSelect.onchange = () => renderLocationMap();
+  $('locmap-search').oninput = () => locmapSearchHighlight();
+
+  renderLocationMap();
+}
+
+function renderLocationMap(){
+  const body = $('locmap-body');
   const canEdit = currentRole === 'owner' || currentPerms.can_manage_spaces;
-  const CANVAS_W = 900, CANVAS_H = 520, BOX_W = 84, BOX_H = 54;
+  const CANVAS_W = 1100, CANVAS_H = 620, BOX_W = 84, BOX_H = 54;
+
+  const selectedFloor = $('locmap-floor-select') ? $('locmap-floor-select').value : '';
+  const data = selectedFloor ? locmapAllData.filter(r => r.floor_id === selectedFloor) : locmapAllData;
 
   let missingCount = 0;
   const positioned = data.map((r, i) => {
@@ -1633,11 +1664,24 @@ async function loadLocationMap(branchId){
   });
 
   body.innerHTML = `
-    ${canEdit ? `<p style="color:var(--muted); font-size:12px; margin-bottom:10px;"><i class="ti ti-hand-move" style="vertical-align:-2px;"></i> اسحب أي رف لمكانه الحقيقي — بيتحفظ تلقائيًا</p>` : ''}
-    ${missingCount ? `<p style="color:var(--amber); font-size:12px; margin-bottom:10px;">${missingCount} رف لسه محتاج ترتيب (متحطّط تلقائيًا مؤقتًا)</p>` : ''}
-    <div class="card" style="padding:10px;">
-      <div id="locmap-canvas" style="position:relative; width:100%; height:${CANVAS_H}px; overflow:auto; background-image:linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px); background-size:24px 24px; border-radius:10px;">
-        <div style="position:relative; width:${CANVAS_W}px; height:${CANVAS_H}px;" id="locmap-inner"></div>
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+      <div style="display:flex; gap:14px; flex-wrap:wrap; font-size:11.5px; color:var(--muted);">
+        <span><span style="display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--success); margin-inline-start:4px;"></span> إشغال عالي (70%+)</span>
+        <span><span style="display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--amber); margin-inline-start:4px;"></span> متوسط (30-70%)</span>
+        <span><span style="display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--danger); margin-inline-start:4px;"></span> منخفض (أقل من 30%)</span>
+      </div>
+      <div style="display:flex; gap:6px; align-items:center;">
+        <button class="btn tiny ghost" id="locmap-zoom-out" title="تصغير">−</button>
+        <span style="font-size:11.5px; color:var(--muted); min-width:36px; text-align:center;" id="locmap-zoom-label">100%</span>
+        <button class="btn tiny ghost" id="locmap-zoom-in" title="تكبير">+</button>
+        <button class="btn tiny ghost" id="locmap-fullscreen" title="ملء الشاشة"><i class="ti ti-arrows-maximize"></i></button>
+      </div>
+    </div>
+    ${canEdit ? `<p style="color:var(--muted); font-size:12px; margin-bottom:8px;"><i class="ti ti-hand-move" style="vertical-align:-2px;"></i> اسحب أي رف لمكانه الحقيقي — بيتحفظ تلقائيًا ويتقفل على أقرب خط شبكة</p>` : ''}
+    ${missingCount ? `<p style="color:var(--amber); font-size:12px; margin-bottom:8px;">${missingCount} رف لسه محتاج ترتيب (متحطّط تلقائيًا مؤقتًا)</p>` : ''}
+    <div class="card" style="padding:10px;" id="locmap-outer">
+      <div id="locmap-canvas" style="position:relative; width:100%; height:520px; overflow:auto; background-image:linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px); background-size:${LOCMAP_GRID}px ${LOCMAP_GRID}px; border-radius:10px;">
+        <div style="position:relative; width:${CANVAS_W}px; height:${CANVAS_H}px; transform-origin:top right; transform:scale(${locmapZoom});" id="locmap-inner"></div>
       </div>
     </div>`;
 
@@ -1646,9 +1690,10 @@ async function loadLocationMap(branchId){
     const box = document.createElement('div');
     const color = r.occ_pct >= 70 ? 'var(--success)' : r.occ_pct >= 30 ? 'var(--amber)' : 'var(--danger)';
     box.className = 'locmap-box';
+    box.dataset.rackCode = r.rack_code;
     box.style.cssText = `position:absolute; left:${r.x}px; top:${r.y}px; width:${BOX_W}px; height:${BOX_H}px;
       background:var(--panel-2); border:1.5px solid ${color}; border-radius:8px; display:flex; flex-direction:column;
-      align-items:center; justify-content:center; font-size:11px; font-weight:700; user-select:none;
+      align-items:center; justify-content:center; font-size:11px; font-weight:700; user-select:none; transition:box-shadow .2s;
       cursor:${canEdit ? 'grab' : 'pointer'}; touch-action:none;`;
     box.innerHTML = `<i class="ti ${RACK_TYPE_ICON[r.rack_type]||'ti-layout-grid'}" style="font-size:16px; color:${color};"></i>
       <span style="direction:ltr; margin-top:2px;">${r.rack_code}</span>
@@ -1668,15 +1713,17 @@ async function loadLocationMap(branchId){
       const onMove = (e) => {
         if(!dragging) return;
         const p = e.touches ? e.touches[0] : e;
-        const nx = Math.max(0, Math.min(CANVAS_W - BOX_W, origX + (p.clientX - startX)));
-        const ny = Math.max(0, Math.min(CANVAS_H - BOX_H, origY + (p.clientY - startY)));
+        const nx = Math.max(0, Math.min(CANVAS_W - BOX_W, origX + (p.clientX - startX) / locmapZoom));
+        const ny = Math.max(0, Math.min(CANVAS_H - BOX_H, origY + (p.clientY - startY) / locmapZoom));
         box.style.left = nx + 'px'; box.style.top = ny + 'px';
       };
       const onUp = async () => {
         if(!dragging) return;
         dragging = false; box.style.cursor = 'grab'; box.style.zIndex = '';
-        const finalX = parseFloat(box.style.left), finalY = parseFloat(box.style.top);
-        const { error } = await sb.rpc('update_rack_position', { p_rack_id: r.rack_id, p_x: finalX, p_y: finalY });
+        const snappedX = Math.round(parseFloat(box.style.left) / LOCMAP_GRID) * LOCMAP_GRID;
+        const snappedY = Math.round(parseFloat(box.style.top) / LOCMAP_GRID) * LOCMAP_GRID;
+        box.style.left = snappedX + 'px'; box.style.top = snappedY + 'px';
+        const { error } = await sb.rpc('update_rack_position', { p_rack_id: r.rack_id, p_x: snappedX, p_y: snappedY });
         if(error) showToast('تعذّر حفظ الموقع: ' + error.message, true);
       };
       box.addEventListener('mousedown', onDown);
@@ -1690,6 +1737,29 @@ async function loadLocationMap(branchId){
     }
     inner.appendChild(box);
   });
+
+  $('locmap-zoom-in').addEventListener('click', () => { locmapZoom = Math.min(2, locmapZoom + 0.2); applyLocmapZoom(); });
+  $('locmap-zoom-out').addEventListener('click', () => { locmapZoom = Math.max(0.4, locmapZoom - 0.2); applyLocmapZoom(); });
+  $('locmap-fullscreen').addEventListener('click', () => {
+    const outer = $('locmap-outer');
+    if(document.fullscreenElement){ document.exitFullscreen(); }
+    else { outer.requestFullscreen ? outer.requestFullscreen() : showToast('ملء الشاشة مش مدعوم في المتصفح ده.', true); }
+  });
+}
+
+function applyLocmapZoom(){
+  $('locmap-inner').style.transform = `scale(${locmapZoom})`;
+  $('locmap-zoom-label').textContent = Math.round(locmapZoom * 100) + '%';
+}
+
+function locmapSearchHighlight(){
+  const q = $('locmap-search').value.trim().toLowerCase();
+  if(!q) return;
+  const box = Array.from(document.querySelectorAll('.locmap-box')).find(b => b.dataset.rackCode.toLowerCase().includes(q));
+  if(!box) return;
+  box.scrollIntoView({ behavior:'smooth', block:'center', inline:'center' });
+  box.style.boxShadow = '0 0 0 3px var(--accent)';
+  setTimeout(() => { box.style.boxShadow = 'none'; }, 1500);
 }
 
 async function loadSupplierProfile(supplierId){
