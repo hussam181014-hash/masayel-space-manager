@@ -1722,23 +1722,10 @@ function renderRackPartsGrid(data, rackCode){
 
   function makeGondolaFlank(label, parts){
     const sorted = [...parts].sort((a,b) => a.level - b.level);
-    const anyPremium = parts.some(p => p.tier === 'premium');
     const flank = document.createElement('div');
-    flank.style.cssText = `display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; width:64px;
-      border-radius:10px; padding:8px 6px; cursor:pointer; background:var(--panel-2); border:1.5px solid ${anyPremium ? 'var(--amber)' : 'var(--border)'};`;
-    const lbl = document.createElement('div');
-    lbl.style.cssText = 'font-size:11px; font-weight:700; color:var(--amber); text-align:center;';
-    lbl.textContent = label;
-    flank.appendChild(lbl);
-    const dotsGrid = document.createElement('div');
-    dotsGrid.style.cssText = 'display:grid; grid-template-columns:1fr 1fr; gap:3px;';
-    sorted.forEach(p => {
-      const dot = document.createElement('span');
-      const c = p.status === 'occupied' ? 'var(--success)' : p.status === 'maintenance' ? 'var(--amber)' : 'var(--muted)';
-      dot.style.cssText = `width:9px; height:9px; border-radius:50%; background:${c};`;
-      dotsGrid.appendChild(dot);
-    });
-    flank.appendChild(dotsGrid);
+    flank.style.cssText = `width:56px; height:44px; display:flex; align-items:center; justify-content:center; border-radius:8px; cursor:pointer;
+      font-size:12px; font-weight:700; background:var(--amber-dim); color:var(--amber); border:1.5px solid var(--amber); margin:2px;`;
+    flank.textContent = label;
     flank.title = `${label} — إشغال ${Math.round(parts.filter(p=>p.status==='occupied').length/parts.length*100)}%`;
     flank.addEventListener('click', () => showLevelPanel(sorted, label, rackCode));
     return flank;
@@ -1890,29 +1877,29 @@ function renderFreezerBColumns(data, rackCode, grid){
   function makeGondolaCard(label, parts){
     const sorted = [...parts].sort((a,b) => a.level - b.level);
     const wrap = document.createElement('div');
-    wrap.style.cssText = 'background:var(--panel-2); border:1px solid var(--border); border-radius:16px; padding:14px; display:flex; gap:14px; flex-wrap:wrap;';
+    wrap.style.cssText = 'background:var(--amber-dim); border:2px solid var(--amber); border-radius:16px; padding:14px; display:flex; gap:14px; flex-wrap:wrap;';
 
     const titleRow = document.createElement('div');
-    titleRow.style.cssText = 'width:100%; display:flex; align-items:center; gap:8px; font-weight:700; font-size:14px; margin-bottom:4px;';
-    titleRow.innerHTML = `<span style="width:7px; height:7px; border-radius:50%; background:${aggDot(parts)}; display:inline-block;"></span> ${label}`;
+    titleRow.style.cssText = 'width:100%; display:flex; align-items:center; gap:8px; font-weight:700; font-size:14px; margin-bottom:4px; color:var(--amber);';
+    titleRow.innerHTML = `<i class="ti ti-column-insert-right"></i> ${label}`;
     wrap.appendChild(titleRow);
 
     const illus = document.createElement('div');
-    illus.style.cssText = 'min-width:140px; border:2px solid var(--border-strong); border-radius:12px; overflow:hidden; background:var(--panel);';
-    const topRow = document.createElement('div');
-    topRow.style.cssText = 'display:flex; border-bottom:2px solid var(--border-strong);';
-    topRow.appendChild(doorHalf('L01', [sorted[0]].filter(Boolean)));
-    const cLine1 = document.createElement('div'); cLine1.style.cssText = 'width:2px; background:var(--border-strong);';
-    topRow.appendChild(cLine1);
-    topRow.appendChild(doorHalf('L02', [sorted[1]].filter(Boolean)));
-    illus.appendChild(topRow);
-    const botRow = document.createElement('div');
-    botRow.style.cssText = 'display:flex;';
-    botRow.appendChild(doorHalf('L04', [sorted[3]].filter(Boolean)));
-    const cLine2 = document.createElement('div'); cLine2.style.cssText = 'width:2px; background:var(--border-strong);';
-    botRow.appendChild(cLine2);
-    botRow.appendChild(doorHalf('L03', [sorted[2]].filter(Boolean)));
-    illus.appendChild(botRow);
+    illus.style.cssText = 'flex:1; min-width:220px; border:2px solid var(--amber); border-radius:12px; overflow:hidden; background:var(--panel);';
+    const doorsRow = document.createElement('div');
+    doorsRow.style.cssText = 'display:flex; border-bottom:2px solid var(--amber);';
+    doorsRow.appendChild(doorHalf('باب 1', [sorted[0]].filter(Boolean)));
+    const cLine1 = document.createElement('div'); cLine1.style.cssText = 'width:2px; background:var(--amber);';
+    doorsRow.appendChild(cLine1);
+    doorsRow.appendChild(doorHalf('باب 2', [sorted[1]].filter(Boolean)));
+    illus.appendChild(doorsRow);
+    const basinRow = document.createElement('div');
+    basinRow.style.cssText = 'display:flex;';
+    basinRow.appendChild(doorHalf('حوض 1', [sorted[2]].filter(Boolean)));
+    const cLine2 = document.createElement('div'); cLine2.style.cssText = 'width:2px; background:var(--amber);';
+    basinRow.appendChild(cLine2);
+    basinRow.appendChild(doorHalf('حوض 2', [sorted[3]].filter(Boolean)));
+    illus.appendChild(basinRow);
     wrap.appendChild(illus);
 
     const info = document.createElement('div');
