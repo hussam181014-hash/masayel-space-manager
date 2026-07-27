@@ -3243,9 +3243,10 @@ async function renderGroupDetails(rackCode, filterPartNum, filterSide, doShowPag
         const row = document.createElement('div');
         row.style.cssText = 'display:flex; align-items:center;';
         row.appendChild(makeRowLabel('قاطع ' + pn));
-        row.addEventListener('click', () => renderGroupDetails(rackCode, pn, 'front', true));
         const preview = frontParts.filter(p => p.part_num === pn).sort((a,b)=>a.level-b.level);
-        preview.forEach(p => row.appendChild(makeGroupChip(p, () => renderGroupDetails(rackCode, pn, 'front', true), true)));
+        const actualSide = preview.length ? (preview[0].side || null) : 'front';
+        row.addEventListener('click', () => renderGroupDetails(rackCode, pn, actualSide, true));
+        preview.forEach(p => row.appendChild(makeGroupChip(p, openLevel, true)));
         grid.appendChild(row);
       });
       if(hasBack){
@@ -3254,7 +3255,9 @@ async function renderGroupDetails(rackCode, filterPartNum, filterSide, doShowPag
           row.style.cssText = 'display:flex; align-items:center;';
           row.appendChild(makeRowLabel('قاطع ' + pn));
           const preview = backParts.filter(p => p.part_num === pn).sort((a,b)=>a.level-b.level);
-          preview.forEach(p => row.appendChild(makeGroupChip(p, () => renderGroupDetails(rackCode, pn, 'back', true), true)));
+          const actualSide = preview.length ? (preview[0].side || null) : 'back';
+          row.addEventListener('click', () => renderGroupDetails(rackCode, pn, actualSide, true));
+          preview.forEach(p => row.appendChild(makeGroupChip(p, openLevel, true)));
           grid.appendChild(row);
         });
       }
