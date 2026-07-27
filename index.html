@@ -1706,8 +1706,8 @@ function renderRackPartsGrid(data, rackCode){
   const frontParts = data.filter(p => p.side !== 'back' && !p.is_endcap);
   const backParts = data.filter(p => p.side === 'back' && !p.is_endcap);
   const hasBack = backParts.length > 0;
-  const frontEndcap = data.filter(p => p.is_endcap && p.unit_type === 'جندولة أمامية').sort((a,b)=>a.level-b.level);
-  const backEndcap = data.filter(p => p.is_endcap && p.unit_type === 'جندولة خلفية').sort((a,b)=>a.level-b.level);
+  const frontEndcap = data.filter(p => p.is_endcap && p.part_num === 0).sort((a,b)=>a.level-b.level);
+  const backEndcap = data.filter(p => p.is_endcap && p.part_num === 999).sort((a,b)=>a.level-b.level);
 
   const numBoxStyle = 'width:44px; height:44px; display:flex; align-items:center; justify-content:center; border-radius:8px; cursor:pointer; font-size:13px; font-weight:700; background:var(--panel-2); border:1.5px solid var(--border); margin:2px;';
 
@@ -1775,8 +1775,8 @@ function renderFreezerBColumns(data, rackCode, grid){
   grid.style.cssText = 'display:flex; flex-direction:column; gap:12px; direction:rtl; width:100%;';
   grid.innerHTML = '';
 
-  const frontEndcap = data.filter(p => p.is_endcap && p.unit_type === 'جندولة أمامية').sort((a,b)=>a.level-b.level);
-  const backEndcap = data.filter(p => p.is_endcap && p.unit_type === 'جندولة خلفية').sort((a,b)=>a.level-b.level);
+  const frontEndcap = data.filter(p => p.is_endcap && p.part_num === 0);
+  const backEndcap = data.filter(p => p.is_endcap && p.part_num === 999);
   const frontCols = data.filter(p => !p.is_endcap && p.side !== 'back');
   const backCols = data.filter(p => !p.is_endcap && p.side === 'back');
   const hasBack = backCols.length > 0;
@@ -1875,7 +1875,12 @@ function renderFreezerBColumns(data, rackCode, grid){
   }
 
   function makeGondolaCard(label, parts){
-    const sorted = [...parts].sort((a,b) => a.level - b.level);
+    const doors = parts.filter(p => p.unit_type.startsWith('باب')).sort((a,b) => a.part_code.localeCompare(b.part_code));
+    const basins = parts.filter(p => p.unit_type.startsWith('حوض')).sort((a,b) => a.part_code.localeCompare(b.part_code));
+    const door1 = doors.filter(p => p.unit_type.startsWith('باب 1'));
+    const door2 = doors.filter(p => p.unit_type.startsWith('باب 2'));
+    const basin1 = basins.slice(0,2), basin2 = basins.slice(2,4);
+
     const wrap = document.createElement('div');
     wrap.style.cssText = 'background:var(--amber-dim); border:2px solid var(--amber); border-radius:16px; padding:14px; display:flex; gap:14px; flex-wrap:wrap;';
 
@@ -1888,17 +1893,17 @@ function renderFreezerBColumns(data, rackCode, grid){
     illus.style.cssText = 'flex:1; min-width:220px; border:2px solid var(--amber); border-radius:12px; overflow:hidden; background:var(--panel);';
     const doorsRow = document.createElement('div');
     doorsRow.style.cssText = 'display:flex; border-bottom:2px solid var(--amber);';
-    doorsRow.appendChild(doorHalf('باب 1', [sorted[0]].filter(Boolean)));
+    doorsRow.appendChild(doorHalf('باب 1', door1));
     const cLine1 = document.createElement('div'); cLine1.style.cssText = 'width:2px; background:var(--amber);';
     doorsRow.appendChild(cLine1);
-    doorsRow.appendChild(doorHalf('باب 2', [sorted[1]].filter(Boolean)));
+    doorsRow.appendChild(doorHalf('باب 2', door2));
     illus.appendChild(doorsRow);
     const basinRow = document.createElement('div');
     basinRow.style.cssText = 'display:flex;';
-    basinRow.appendChild(doorHalf('حوض 1', [sorted[2]].filter(Boolean)));
+    basinRow.appendChild(doorHalf('حوض 1', basin1));
     const cLine2 = document.createElement('div'); cLine2.style.cssText = 'width:2px; background:var(--amber);';
     basinRow.appendChild(cLine2);
-    basinRow.appendChild(doorHalf('حوض 2', [sorted[3]].filter(Boolean)));
+    basinRow.appendChild(doorHalf('حوض 2', basin2));
     illus.appendChild(basinRow);
     wrap.appendChild(illus);
 
@@ -2292,8 +2297,8 @@ function renderCodesGrid(){
   const frontParts = generatedParts.filter(p => p.side !== 'back' && !p.is_endcap);
   const backParts = generatedParts.filter(p => p.side === 'back' && !p.is_endcap);
   const hasBack = backParts.length > 0;
-  const frontEndcapParts = generatedParts.filter(p => p.is_endcap && p.unit_type === 'جندولة أمامية');
-  const backEndcapParts = generatedParts.filter(p => p.is_endcap && p.unit_type === 'جندولة خلفية');
+  const frontEndcapParts = generatedParts.filter(p => p.is_endcap && p.part_num === 0);
+  const backEndcapParts = generatedParts.filter(p => p.is_endcap && p.part_num === 999);
   const hasFrontEndcap = frontEndcapParts.length > 0;
   const hasBackEndcap = backEndcapParts.length > 0;
 
@@ -2592,8 +2597,8 @@ function renderRack3D(parts, partsCount, rackType, freezerSubtype, widthCm, dept
   const frontParts = parts.filter(p => p.side !== 'back' && !p.is_endcap);
   const backParts = parts.filter(p => p.side === 'back' && !p.is_endcap);
   const hasBack = backParts.length > 0;
-  const hasFrontEndcap = parts.some(p => p.is_endcap && p.unit_type === 'جندولة أمامية');
-  const hasBackEndcap = parts.some(p => p.is_endcap && p.unit_type === 'جندولة خلفية');
+  const hasFrontEndcap = parts.some(p => p.is_endcap && p.part_num === 0);
+  const hasBackEndcap = parts.some(p => p.is_endcap && p.part_num === 999);
 
   function isPremiumAt(list, pos){
     return list.some(p => p.part_num === pos && p.tier === 'premium');
@@ -2886,8 +2891,8 @@ async function renderGroupDetails(rackCode, filterPartNum, filterSide, doShowPag
     const isFreezerB = data.some(p => p.unit_type && (p.unit_type.startsWith('باب') || p.unit_type.startsWith('حوض')));
     if(isFreezerB){
       grid.style.cssText = 'display:flex; flex-wrap:wrap; gap:10px;';
-      const frontEndcap = data.filter(p => p.is_endcap && p.unit_type === 'جندولة أمامية').sort((a,b)=>a.level-b.level);
-      const backEndcap = data.filter(p => p.is_endcap && p.unit_type === 'جندولة خلفية').sort((a,b)=>a.level-b.level);
+      const frontEndcap = data.filter(p => p.is_endcap && p.part_num === 0).sort((a,b)=>a.level-b.level);
+      const backEndcap = data.filter(p => p.is_endcap && p.part_num === 999).sort((a,b)=>a.level-b.level);
       const columnParts = data.filter(p => !p.is_endcap);
       const partNums = Array.from(new Set(columnParts.map(p => p.part_num))).sort((a,b) => a-b);
 
@@ -2917,12 +2922,45 @@ async function renderGroupDetails(rackCode, filterPartNum, filterSide, doShowPag
         return cell;
       }
       function makeEndcapCard(label, parts){
+        const doors = parts.filter(p => p.unit_type.startsWith('باب'));
+        const basins = parts.filter(p => p.unit_type.startsWith('حوض')).sort((a,b) => a.part_code.localeCompare(b.part_code));
+        const doorMap = {};
+        doors.forEach(p => {
+          const m = p.unit_type.match(/باب\s*(\d+)\s*-\s*جزء\s*(\d+)/);
+          if(m) doorMap[m[1]+'-'+m[2]] = p;
+        });
+        const doorNums = Array.from(new Set(doors.map(p => (p.unit_type.match(/باب\s*(\d+)/)||[])[1]).filter(Boolean))).sort();
+
         const card = document.createElement('div');
-        const anyPremium = parts.some(p => p.tier === 'premium');
-        card.style.cssText = `min-width:96px; padding:10px 12px; border-radius:12px; cursor:pointer; text-align:center;
-          background:var(--panel-2); border:1.5px solid ${anyPremium ? 'var(--amber)' : 'var(--border)'};`;
-        card.innerHTML = `<div style="font-weight:700; font-size:13px; margin-bottom:8px;">${label}</div>
-          <span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${aggDot(parts)};"></span>`;
+        card.style.cssText = 'padding:10px; border-radius:12px; background:var(--amber-dim); border:1.5px solid var(--amber);';
+
+        const header = document.createElement('div');
+        header.style.cssText = 'font-weight:700; font-size:12.5px; margin-bottom:7px; text-align:center; color:var(--amber);';
+        header.textContent = label;
+        card.appendChild(header);
+
+        if(doorNums.length){
+          const doorsRow = document.createElement('div');
+          doorsRow.style.cssText = 'display:flex; gap:3px; margin-bottom:4px;';
+          doorNums.forEach(dn => {
+            const doorBox = document.createElement('div');
+            doorBox.style.cssText = 'display:flex; flex-direction:column; gap:2px; border:1px dashed var(--amber); border-radius:6px; padding:3px;';
+            doorBox.appendChild(miniCell(doorMap[dn+'-1'], 30, 13));
+            doorBox.appendChild(miniCell(doorMap[dn+'-2'], 30, 13));
+            doorsRow.appendChild(doorBox);
+          });
+          card.appendChild(doorsRow);
+          const basinRow = document.createElement('div');
+          basinRow.style.cssText = 'display:flex; gap:2px; border:1px dashed var(--amber); border-radius:6px; padding:3px;';
+          basins.forEach(p => basinRow.appendChild(miniCell(p, 15, 13)));
+          card.appendChild(basinRow);
+        } else {
+          const dot = document.createElement('div');
+          dot.style.cssText = 'text-align:center;';
+          dot.innerHTML = `<span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${aggDot(parts)};"></span>`;
+          card.appendChild(dot);
+        }
+
         card.addEventListener('click', () => {
           detailsBackTarget='page-group'; detailsBackContext={rackCode, part_num:null, side:null};
           renderPartDetails(parts[0].part_code);
@@ -2975,8 +3013,8 @@ async function renderGroupDetails(rackCode, filterPartNum, filterSide, doShowPag
       const frontParts = data.filter(p => p.side !== 'back' && !p.is_endcap);
       const backParts = data.filter(p => p.side === 'back' && !p.is_endcap);
       const hasBack = backParts.length > 0;
-      const frontEndcap = data.filter(p => p.is_endcap && p.unit_type === 'جندولة أمامية');
-      const backEndcap = data.filter(p => p.is_endcap && p.unit_type === 'جندولة خلفية');
+      const frontEndcap = data.filter(p => p.is_endcap && p.part_num === 0);
+      const backEndcap = data.filter(p => p.is_endcap && p.part_num === 999);
       const partNums = Array.from(new Set(frontParts.map(p => p.part_num))).sort((a,b) => a-b);
 
       grid.style.cssText = 'display:flex; flex-direction:column; gap:6px; overflow-x:auto;';
