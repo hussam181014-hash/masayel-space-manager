@@ -405,6 +405,17 @@
   </div>
 </div>
 
+<div class="wrap" id="pending-approval-screen" style="display:none;">
+  <div class="card" style="text-align:center; max-width:420px; margin:80px auto;">
+    <div style="font-size:38px; margin-bottom:10px;"><i class="ti ti-clock-hour-4"></i></div>
+    <h2 style="margin-bottom:8px;">حسابك في انتظار الموافقة</h2>
+    <p style="color:var(--muted); font-size:13.5px; margin-bottom:18px;">
+      حسابك (<b id="pending-email"></b>) اتسجّل بنجاح، لكن محتاج موافقة المالك قبل ما تقدر تستخدم النظام. راجع مسؤول النظام.
+    </p>
+    <button class="btn ghost" id="pending-logout">تسجيل خروج</button>
+  </div>
+</div>
+
 <div id="app-shell" style="display:none;">
   <nav id="sidebar">
     <div class="sidebar-brand">
@@ -1017,7 +1028,15 @@ async function enterApp(){
   if(!user) return;
   currentUserEmail = user.email;
 
-  const { data: profile } = await sb.from('profiles').select('role, can_view_spaces, can_manage_spaces, can_scan').eq('id', user.id).single();
+  const { data: profile } = await sb.from('profiles').select('role, is_approved, can_view_spaces, can_manage_spaces, can_scan').eq('id', user.id).single();
+
+  if(profile && !profile.is_approved){
+    $('auth-screen').style.display = 'none';
+    $('pending-approval-screen').style.display = 'block';
+    $('pending-email').textContent = currentUserEmail;
+    return;
+  }
+
   currentRole = profile ? profile.role : 'space_viewer';
   currentPerms = profile ? {
     can_view_spaces: profile.can_view_spaces,
@@ -1026,10 +1045,13 @@ async function enterApp(){
   } : currentPerms;
 
   $('auth-screen').style.display = 'none';
+  $('pending-approval-screen').style.display = 'none';
   $('app-shell').style.display = 'flex';
   applyPermissionVisibility();
   showSection('dashboard-home');
 }
+
+$('pending-logout').addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); });
 
 document.querySelectorAll('.nav-item').forEach(el => {
   el.addEventListener('click', () => goToSection(el.dataset.section));
@@ -1064,7 +1086,10 @@ async function loadUsersList(){
     return `
     <div class="user-row" data-id="${u.id}">
       <div class="u-email">${u.email}</div>
-      <div class="u-role">مساحات فقط</div>
+      <div class="u-role">${u.is_approved ? '<span style="color:var(--success);">✓ مفعّل</span>' : '<span style="color:var(--danger);">بانتظار الموافقة</span>'}</div>
+      <div style="margin:8px 0;">
+        <button class="btn tiny ${u.is_approved ? 'ghost' : ''}" data-approve="true">${u.is_approved ? 'إلغاء التفعيل' : 'الموافقة على الحساب'}</button>
+      </div>
       <div class="u-perms">
         <label><input type="checkbox" class="perm-view" ${u.can_view_spaces?'checked':''}> عرض المساحات</label>
         <label><input type="checkbox" class="perm-manage" ${u.can_manage_spaces?'checked':''}> إنشاء/تعديل الأرفف</label>
@@ -1073,6 +1098,20 @@ async function loadUsersList(){
       <button class="btn small save-perm-btn">حفظ</button>
     </div>`;
   }).join('');
+
+  document.querySelectorAll('[data-approve]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const row = btn.closest('.user-row');
+      const userId = row.dataset.id;
+      const currentlyApproved = btn.textContent.includes('إلغاء');
+      btn.disabled = true;
+      const { error } = await sb.rpc('set_user_approval', { p_user_id: userId, p_approved: !currentlyApproved });
+      btn.disabled = false;
+      if(error){ showToast('فشل التحديث: ' + error.message, true); return; }
+      showToast(currentlyApproved ? 'تم إلغاء تفعيل الحساب.' : 'تم تفعيل الحساب.');
+      await loadUsersList();
+    });
+  });
 
   document.querySelectorAll('.save-perm-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
@@ -1874,6 +1913,8 @@ async function showRackDetail(rackCode){
   const occCount = data.filter(p => p.status === 'occupied').length;
   const vendorCount = new Set(data.filter(p => p.supplier_id).map(p => p.supplier_id)).size;
 
+  const canManage = currentRole === 'owner' || currentPerms.can_manage_spaces;
+
   el.innerHTML = `
     <a class="menu-back" id="rack-back-map"><i class="ti ti-arrow-right"></i> رجوع لخريطة الموقع</a>
     <div class="card" style="margin-bottom:14px;">
@@ -1887,8 +1928,10 @@ async function showRackDetail(rackCode){
           <div style="color:var(--muted); font-size:10.5px;">نسبة الإشغال</div>
         </div>
       </div>
-      <div style="margin-top:10px; text-align:left;">
+      <div style="margin-top:10px; display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap;">
+        ${canManage ? `<button class="btn ghost small" id="edit-rack-btn"><i class="ti ti-edit"></i> تعديل بيانات الرف</button>` : ''}
         <button class="btn ghost small" id="print-rack-btn">🖨️ طباعة باركود الرف</button>
+        ${currentRole === 'owner' ? `<button class="btn danger small" id="delete-rack-btn"><i class="ti ti-trash"></i> حذف الرف نهائيًا</button>` : ''}
       </div>
     </div>
     <div class="card">
@@ -1902,6 +1945,13 @@ async function showRackDetail(rackCode){
     printCodeLabels(items);
   });
 
+  if(canManage){
+    $('edit-rack-btn').addEventListener('click', () => openRackEditModal(rackCode));
+  }
+  if(currentRole === 'owner'){
+    $('delete-rack-btn').addEventListener('click', () => openRackDeleteModal(rackCode));
+  }
+
   $('rack-back-map').addEventListener('click', () => {
     document.querySelectorAll('.report-tab-btn').forEach(b => { b.classList.remove('sel'); b.classList.add('ghost'); });
     document.querySelector('[data-tab="map"]').classList.add('sel');
@@ -1910,6 +1960,106 @@ async function showRackDetail(rackCode){
   });
 
   renderRackPartsGrid(data, rackCode);
+}
+
+async function openRackEditModal(rackCode){
+  const { data: rackRow, error: rackErr } = await sb.from('racks').select('*').eq('code', rackCode).single();
+  if(rackErr || !rackRow){ showToast('تعذّر تحميل بيانات الرف.', true); return; }
+
+  const [{ data: branches }, { data: categories }] = await Promise.all([
+    sb.from('branches').select('*').order('name'),
+    sb.from('categories').select('*').order('name')
+  ]);
+
+  openModal(`
+    <div style="padding:20px;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
+        <div style="font-weight:700; direction:ltr;">${rackCode}</div>
+        <a id="close-rack-edit" style="color:var(--muted); cursor:pointer; font-size:18px; line-height:1;">✕</a>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>الفرع</label>
+          <select id="rem-branch">${(branches||[]).map(b => `<option value="${b.id}" ${b.id===rackRow.branch_id?'selected':''}>${b.name}</option>`).join('')}</select>
+        </div>
+        <div class="field"><label>الطابق</label><select id="rem-floor"><option value="">—</option></select></div>
+        <div class="field"><label>التصنيف الرئيسي</label>
+          <select id="rem-category"><option value="">بدون تصنيف</option>${(categories||[]).map(c => `<option value="${c.id}" ${c.id===rackRow.category_id?'selected':''}>${c.name}</option>`).join('')}</select>
+        </div>
+        <div class="field"><label>التصنيف الفرعي</label><select id="rem-subcategory"><option value="">بدون تصنيف فرعي</option></select></div>
+        <div class="field"><label>القطاع</label><input type="text" id="rem-section" value="${rackRow.section||''}"></div>
+      </div>
+      <div class="field"><label>ملاحظات</label><textarea id="rem-notes" rows="3">${rackRow.notes||''}</textarea></div>
+      <button class="btn small" id="rem-save">حفظ التعديلات</button>
+      <div class="err" id="rem-err"></div>
+    </div>`);
+
+  async function loadFloorsForModal(branchId, selectedFloor){
+    const { data: floors } = await sb.from('branch_floors').select('*').eq('branch_id', branchId).order('name');
+    $('rem-floor').innerHTML = '<option value="">—</option>' + (floors||[]).map(f => `<option value="${f.id}" ${f.id===selectedFloor?'selected':''}>${f.name}</option>`).join('');
+  }
+  async function loadSubcatsForModal(categoryId, selectedSub){
+    if(!categoryId){ $('rem-subcategory').innerHTML = '<option value="">بدون تصنيف فرعي</option>'; return; }
+    const { data: subs } = await sb.from('subcategories').select('*').eq('category_id', categoryId).order('name');
+    $('rem-subcategory').innerHTML = '<option value="">بدون تصنيف فرعي</option>' + (subs||[]).map(s => `<option value="${s.id}" ${s.id===selectedSub?'selected':''}>${s.name}</option>`).join('');
+  }
+  await loadFloorsForModal(rackRow.branch_id, rackRow.floor_id);
+  await loadSubcatsForModal(rackRow.category_id, rackRow.subcategory_id);
+  $('rem-branch').addEventListener('change', (e) => loadFloorsForModal(e.target.value, null));
+  $('rem-category').addEventListener('change', (e) => loadSubcatsForModal(e.target.value, null));
+
+  $('close-rack-edit').addEventListener('click', closeModal);
+  $('rem-save').addEventListener('click', async () => {
+    $('rem-err').style.display = 'none';
+    $('rem-save').disabled = true;
+    const { error } = await sb.rpc('update_rack_details', {
+      p_rack_id: rackRow.id,
+      p_branch_id: $('rem-branch').value || null,
+      p_floor_id: $('rem-floor').value || null,
+      p_category_id: $('rem-category').value || null,
+      p_subcategory_id: $('rem-subcategory').value || null,
+      p_section: $('rem-section').value || null,
+      p_notes: $('rem-notes').value || null
+    });
+    $('rem-save').disabled = false;
+    if(error){ $('rem-err').textContent = error.message; $('rem-err').style.display = 'block'; return; }
+    showToast('تم حفظ التعديلات.');
+    closeModal();
+    await showRackDetail(rackCode);
+  });
+}
+
+async function openRackDeleteModal(rackCode){
+  openModal(`
+    <div style="padding:20px;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
+        <div style="font-weight:700; color:var(--danger);"><i class="ti ti-alert-triangle"></i> حذف الرف نهائيًا</div>
+        <a id="close-rack-delete" style="color:var(--muted); cursor:pointer; font-size:18px; line-height:1;">✕</a>
+      </div>
+      <p style="font-size:13px; color:var(--muted); margin-bottom:14px;">
+        الإجراء ده <b style="color:var(--danger);">نهائي ومش هينفع يترجع</b> — هيتمسح الرف "${rackCode}" وكل قواطعه ومستوياته.
+        اكتب كود الرف بالظبط عشان تأكّد.
+      </p>
+      <div class="field"><input type="text" id="rdm-confirm" placeholder="${rackCode}" style="direction:ltr;"></div>
+      <button class="btn danger small" id="rdm-confirm-btn">حذف نهائيًا</button>
+      <div class="err" id="rdm-err"></div>
+    </div>`);
+
+  $('close-rack-delete').addEventListener('click', closeModal);
+  $('rdm-confirm-btn').addEventListener('click', async () => {
+    $('rdm-err').style.display = 'none';
+    const typed = $('rdm-confirm').value.trim();
+    if(typed !== rackCode){ $('rdm-err').textContent = 'الكود اللي كتبته مش مطابق.'; $('rdm-err').style.display = 'block'; return; }
+    const { data: rackRow } = await sb.from('racks').select('id').eq('code', rackCode).single();
+    if(!rackRow){ $('rdm-err').textContent = 'تعذّر إيجاد الرف.'; $('rdm-err').style.display = 'block'; return; }
+    $('rdm-confirm-btn').disabled = true;
+    const { error } = await sb.rpc('delete_rack_permanently', { p_rack_id: rackRow.id, p_confirm_code: typed });
+    $('rdm-confirm-btn').disabled = false;
+    if(error){ $('rdm-err').textContent = error.message; $('rdm-err').style.display = 'block'; return; }
+    showToast('تم حذف الرف نهائيًا.');
+    closeModal();
+    goToSection('reports-app');
+    await loadReportTab('map');
+  });
 }
 
 /* ============ شبكة القاطع بالشكل المتفق عليه: صف أمامي فوق، صف خلفي تحت، جندولتين طرفيتين ============ */
@@ -2928,7 +3078,7 @@ let detailsBackTarget = 'page-home';
 let detailsBackContext = null; // { rackCode, part_num, side } لما نرجع لصفحة المجموعة
 $('details-back-btn').addEventListener('click', () => {
   if(detailsBackTarget === 'page-group' && detailsBackContext){
-    renderGroupDetails(detailsBackContext.rackCode, detailsBackContext.part_num, detailsBackContext.side, false);
+    renderGroupDetails(detailsBackContext.rackCode, detailsBackContext.part_num, detailsBackContext.side, true);
   } else {
     scanShowPage('page-home');
   }
