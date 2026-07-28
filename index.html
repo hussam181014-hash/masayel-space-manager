@@ -2243,6 +2243,54 @@ async function openRackDeleteModal(rackCode){
 }
 
 /* ============ شبكة القاطع بالشكل المتفق عليه: صف أمامي فوق، صف خلفي تحت، جندولتين طرفيتين ============ */
+function aggPct(parts){
+  if(!parts.length) return 0;
+  return Math.round(parts.filter(p => p.status === 'occupied').length / parts.length * 100);
+}
+function aggDot(parts){
+  if(parts.some(p => p.status === 'occupied')) return 'var(--success)';
+  if(parts.some(p => p.status === 'maintenance')) return 'var(--amber)';
+  return 'var(--muted)';
+}
+function supplierSummary(parts){
+  const names = Array.from(new Set(parts.filter(p => p.supplier_name).map(p => p.supplier_name)));
+  if(!names.length) return `<span style="color:var(--muted);">المورد: </span><b>—</b>`;
+  if(names.length === 1){
+    return `<span style="color:var(--muted);">المورد: </span><b style="display:inline-block; max-width:150px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; vertical-align:bottom;" title="${names[0]}">${names[0]}</b>`;
+  }
+  return `<span style="color:var(--muted);">عدد الموردين: </span><b title="${names.join(' — ')}">${names.length}</b>`;
+}
+function levelSlotColor(p){
+  if(p.status === 'occupied') return 'var(--success)';
+  if(p.status === 'maintenance') return 'var(--amber)';
+  return 'var(--panel)';
+}
+function makeLevelSlot(p, rackCode){
+  const slot = document.createElement('div');
+  slot.style.cssText = `width:26px; height:26px; border-radius:6px; background:${levelSlotColor(p)}; border:1px solid var(--border-strong); cursor:pointer;`;
+  if(p.tier === 'premium') slot.style.boxShadow = 'inset 0 0 0 2px var(--amber)';
+  slot.title = p.part_code + ' — ' + (p.supplier_name || 'فارغ');
+  slot.addEventListener('click', (e) => { e.stopPropagation(); openPartEditor(p, rackCode); });
+  return slot;
+}
+function makeInfoCard(titleHtml, illusEl, parts){
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'background:var(--panel-2); border:1px solid var(--border); border-radius:16px; padding:14px; display:flex; gap:14px; flex-wrap:wrap;';
+  const titleRow = document.createElement('div');
+  titleRow.style.cssText = 'width:100%; display:flex; align-items:center; gap:8px; font-weight:700; font-size:14px; margin-bottom:4px;';
+  titleRow.innerHTML = `<span style="width:7px; height:7px; border-radius:50%; background:${aggDot(parts)}; display:inline-block;"></span> ${titleHtml}`;
+  wrap.appendChild(titleRow);
+  wrap.appendChild(illusEl);
+  const info = document.createElement('div');
+  info.style.cssText = 'min-width:140px; max-width:220px; display:flex; flex-direction:column; gap:6px; font-size:12.5px;';
+  info.innerHTML = `
+    <div><span style="color:var(--muted);">الإشغال: </span><b style="color:${aggPct(parts) > 50 ? 'var(--success)' : 'var(--amber)'};">${aggPct(parts)}%</b></div>
+    <div>${supplierSummary(parts)}</div>
+    <div><span style="color:var(--muted);">عدد الوحدات: </span><b>${parts.length} وحدة</b></div>`;
+  wrap.appendChild(info);
+  return wrap;
+}
+
 function renderRackPartsGrid(data, rackCode){
   const grid = $('rack-parts-grid');
   $('rack-level-panel').innerHTML = '';
@@ -2253,72 +2301,75 @@ function renderRackPartsGrid(data, rackCode){
     return;
   }
 
+  const isPallet = data.some(p => p.unit_type && p.unit_type.startsWith('ربع'));
+  if(isPallet){
+    renderPalletCard(data, rackCode, grid);
+    return;
+  }
+
+  grid.style.cssText = 'display:flex; flex-direction:column; gap:12px; direction:rtl; width:100%;';
+  grid.innerHTML = '';
+
   const frontParts = data.filter(p => p.side !== 'back' && !p.is_endcap);
   const backParts = data.filter(p => p.side === 'back' && !p.is_endcap);
   const hasBack = backParts.length > 0;
   const frontEndcap = data.filter(p => p.is_endcap && p.part_num === 0).sort((a,b)=>a.level-b.level);
   const backEndcap = data.filter(p => p.is_endcap && p.part_num === 999).sort((a,b)=>a.level-b.level);
-
-  const numBoxStyle = 'width:44px; height:44px; display:flex; align-items:center; justify-content:center; border-radius:8px; cursor:pointer; font-size:13px; font-weight:700; background:var(--panel-2); border:1.5px solid var(--border); margin:2px;';
-
-  grid.style.cssText = 'display:flex; align-items:stretch; gap:8px; direction:rtl; overflow-x:auto; padding:4px 0;';
-  grid.innerHTML = '';
-
-  function aggDotShelf(parts){
-    if(parts.some(p => p.status === 'occupied')) return 'var(--success)';
-    if(parts.some(p => p.status === 'maintenance')) return 'var(--amber)';
-    return 'var(--muted)';
-  }
-
-  function makeGondolaFlank(label, parts){
-    const sorted = [...parts].sort((a,b) => a.level - b.level);
-    const flank = document.createElement('div');
-    flank.style.cssText = `width:56px; height:44px; display:flex; align-items:center; justify-content:center; border-radius:8px; cursor:pointer;
-      font-size:12px; font-weight:700; background:var(--amber-dim); color:var(--amber); border:1.5px solid var(--amber); margin:2px;`;
-    flank.textContent = label;
-    flank.title = `${label} — إشغال ${Math.round(parts.filter(p=>p.status==='occupied').length/parts.length*100)}%`;
-    flank.addEventListener('click', () => showLevelPanel(sorted, label, rackCode));
-    return flank;
-  }
-
-  if(frontEndcap.length){
-    grid.appendChild(makeGondolaFlank('أمامية', frontEndcap));
-  }
-
-  const colsWrap = document.createElement('div');
-  colsWrap.style.cssText = 'display:flex; flex-direction:column; gap:4px;';
   const partNums = Array.from(new Set(frontParts.map(p => p.part_num))).sort((a,b) => a-b);
 
-  const frontRow = document.createElement('div');
-  frontRow.style.cssText = 'display:flex;';
-  partNums.forEach(pn => {
-    const cellParts = frontParts.filter(p => p.part_num === pn);
+  function shelfIllustration(parts){
+    const sorted = [...parts].sort((a,b) => b.level - a.level);
     const box = document.createElement('div');
-    box.style.cssText = numBoxStyle;
-    box.textContent = pn;
-    box.addEventListener('click', () => showLevelPanel(cellParts, 'قاطع ' + pn + ' — أمامي', rackCode));
-    frontRow.appendChild(box);
-  });
-  colsWrap.appendChild(frontRow);
-
-  if(hasBack){
-    const backRow = document.createElement('div');
-    backRow.style.cssText = 'display:flex;';
-    partNums.forEach(pn => {
-      const cellParts = backParts.filter(p => p.part_num === pn);
-      const box = document.createElement('div');
-      box.style.cssText = numBoxStyle;
-      box.textContent = pn;
-      box.addEventListener('click', () => showLevelPanel(cellParts, 'قاطع ' + pn + ' — خلفي', rackCode));
-      backRow.appendChild(box);
+    box.style.cssText = 'min-width:110px; border:2px solid var(--border-strong); border-radius:12px; overflow:hidden; background:var(--panel); display:flex; flex-direction:column;';
+    sorted.forEach((p, i) => {
+      const row = document.createElement('div');
+      row.style.cssText = `display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; ${i < sorted.length-1 ? 'border-bottom:1px dashed var(--border-strong);' : ''}`;
+      const lbl = document.createElement('span');
+      lbl.style.cssText = 'font-size:11px; color:var(--muted); font-weight:600;';
+      lbl.textContent = 'L0' + p.level;
+      row.appendChild(lbl);
+      row.appendChild(makeLevelSlot(p, rackCode));
+      box.appendChild(row);
     });
-    colsWrap.appendChild(backRow);
+    return box;
   }
-  grid.appendChild(colsWrap);
 
-  if(backEndcap.length){
-    grid.appendChild(makeGondolaFlank('خلفية', backEndcap));
+  if(frontEndcap.length) grid.appendChild(makeInfoCard('جندولة أمامية', shelfIllustration(frontEndcap), frontEndcap));
+  partNums.forEach(pn => {
+    const parts = frontParts.filter(p => p.part_num === pn);
+    grid.appendChild(makeInfoCard(hasBack ? ('قاطع ' + pn + ' — أمامي') : ('قاطع ' + pn), shelfIllustration(parts), parts));
+  });
+  if(hasBack){
+    partNums.forEach(pn => {
+      const parts = backParts.filter(p => p.part_num === pn);
+      grid.appendChild(makeInfoCard('قاطع ' + pn + ' — خلفي', shelfIllustration(parts), parts));
+    });
   }
+  if(backEndcap.length) grid.appendChild(makeInfoCard('جندولة خلفية', shelfIllustration(backEndcap), backEndcap));
+}
+
+function renderPalletCard(data, rackCode, grid){
+  grid.style.cssText = 'display:flex; flex-direction:column; gap:12px; direction:rtl; width:100%;';
+  grid.innerHTML = '';
+  const sorted = [...data].sort((a,b) => a.level - b.level);
+  const illus = document.createElement('div');
+  illus.style.cssText = 'min-width:140px; border:2px solid var(--border-strong); border-radius:12px; overflow:hidden; background:var(--panel); display:grid; grid-template-columns:1fr 1fr;';
+  sorted.forEach((p, i) => {
+    const cell = document.createElement('div');
+    const borders = [];
+    if(i % 2 === 0) borders.push('border-left:2px solid var(--border-strong)'); else borders.push('border-right:0');
+    if(i < 2) borders.push('border-bottom:2px solid var(--border-strong)');
+    cell.style.cssText = `padding:14px; text-align:center; ${borders.join(';')};`;
+    const lbl = document.createElement('div');
+    lbl.style.cssText = 'font-size:10.5px; color:var(--muted); font-weight:600; margin-bottom:6px;';
+    lbl.textContent = 'ربع ' + p.level;
+    cell.appendChild(lbl);
+    const slot = makeLevelSlot(p, rackCode);
+    slot.style.width = '30px'; slot.style.height = '30px'; slot.style.margin = '0 auto';
+    cell.appendChild(slot);
+    illus.appendChild(cell);
+  });
+  grid.appendChild(makeInfoCard('الطبلية', illus, data));
 }
 
 function renderFreezerBColumns(data, rackCode, grid){
