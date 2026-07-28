@@ -1203,14 +1203,21 @@ async function loadUsersList(){
       const reportsRestrict = row.querySelector('.restrict-reports-toggle').checked;
       const allowedBranches = branchRestrict ? Array.from(row.querySelectorAll('.branch-chk:checked')).map(c => c.value) : null;
       const allowedReports = reportsRestrict ? Array.from(row.querySelectorAll('.report-chk:checked')).map(c => c.value) : null;
-      btn.disabled = true;
+      const originalText = btn.textContent;
+      btn.disabled = true; btn.textContent = 'جاري الحفظ...';
       const { error } = await sb.rpc('update_user_permissions', {
         p_user_id: userId, p_can_view_spaces: canView, p_can_manage_spaces: canManage, p_can_scan: canScanPerm,
         p_allowed_branch_ids: allowedBranches, p_allowed_reports: allowedReports
       });
-      btn.disabled = false;
-      if(error){ showToast('فشل الحفظ: ' + error.message, true); return; }
-      showToast('تم حفظ الصلاحيات.');
+      if(error){
+        btn.disabled = false; btn.textContent = originalText;
+        showToast('فشل الحفظ: ' + error.message, true);
+        return;
+      }
+      btn.textContent = '✓ اتحفظ';
+      btn.style.background = 'var(--success)';
+      showToast('تم حفظ الصلاحيات بنجاح.');
+      setTimeout(() => { btn.disabled = false; btn.textContent = originalText; btn.style.background = ''; }, 1800);
     });
   });
 }
