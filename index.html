@@ -285,6 +285,24 @@
   .user-row .u-email{font-weight:700; font-size:14px; margin-bottom:2px;}
   .user-row .u-role{font-size:11.5px; color:var(--muted); margin-bottom:10px;}
   .user-row .u-perms{display:flex; gap:16px; flex-wrap:wrap; margin-bottom:10px;}
+
+  .user-acc{background:var(--panel); border:1px solid var(--border); border-radius:14px; margin-bottom:8px; overflow:hidden;}
+  .user-acc-header{display:flex; align-items:center; gap:12px; padding:12px 16px; cursor:pointer; transition:background .15s;}
+  .user-acc-header:hover{background:var(--panel-2);}
+  .ua-avatar{width:36px; height:36px; border-radius:50%; background:var(--accent-dim); color:var(--accent-hover);
+    display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; flex-shrink:0;}
+  .ua-info{flex:1; min-width:0;}
+  .ua-name{font-weight:700; font-size:13.5px;}
+  .ua-sub{font-size:11px; color:var(--muted); margin-top:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .ua-badges{display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end;}
+  .ua-status-badge{font-size:10.5px; font-weight:600; padding:3px 9px; border-radius:20px;}
+  .ua-status-badge.ok{background:rgba(34,197,94,.12); color:var(--success);}
+  .ua-status-badge.pending{background:rgba(239,68,68,.12); color:var(--danger);}
+  .ua-chip{font-size:10px; padding:2px 8px; border-radius:20px; background:var(--panel-2); border:1px solid var(--border); color:var(--muted);}
+  .ua-chevron{font-size:16px; color:var(--muted); transition:transform .2s; flex-shrink:0;}
+  .user-acc.open .ua-chevron{transform:rotate(180deg);}
+  .user-acc-body{display:none; padding:0 16px 16px;}
+  .user-acc.open .user-acc-body{display:block;}
   .user-row label{display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;}
   .user-row input[type=checkbox]{width:auto;}
   .cat-row{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:10px;}
@@ -1129,59 +1147,93 @@ async function loadUsersList(){
   if(error){ $('users-list').innerHTML = '<p style="color:var(--danger); font-size:13px;">تعذّر التحميل: ' + error.message + '</p>'; return; }
   if(!data || !data.length){ $('users-list').innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش مستخدمين.</p>'; return; }
 
+  function permChips(u){
+    let chips = '';
+    if(u.can_view_spaces) chips += '<span class="ua-chip">عرض</span>';
+    if(u.can_manage_spaces) chips += '<span class="ua-chip">إدارة</span>';
+    if(u.can_scan) chips += '<span class="ua-chip">مسح</span>';
+    if(!u.can_view_spaces && !u.can_manage_spaces && !u.can_scan) chips = '<span class="ua-chip" style="opacity:.6;">بدون صلاحيات</span>';
+    return chips;
+  }
+
   $('users-list').innerHTML = data.map(u => {
     if(u.role === 'owner'){
-      return `<div class="user-row"><div class="u-email">${u.full_name || u.email}</div><div class="u-role">مالك — كل الصلاحيات تلقائيًا</div></div>`;
+      return `<div class="user-acc-header" style="cursor:default;">
+        <div class="ua-avatar" style="background:var(--amber-dim); color:var(--amber);">${(u.full_name||u.email).charAt(0).toUpperCase()}</div>
+        <div class="ua-info"><div class="ua-name">${u.full_name || u.email}</div><div class="ua-sub">${u.email}</div></div>
+        <span class="ua-chip" style="color:var(--amber); border-color:var(--amber);">مالك</span>
+      </div>`;
     }
     const branchRestricted = !!(u.allowed_branch_ids && u.allowed_branch_ids.length);
     const reportsRestricted = !!(u.allowed_reports && u.allowed_reports.length);
     return `
-    <div class="user-row" data-id="${u.id}">
-      <div class="u-email">${u.full_name || u.email}</div>
-      <div style="font-size:11.5px; color:var(--muted); margin-top:2px;">${u.email}${u.phone ? ' · ' + u.phone : ''}</div>
-      <div class="u-role">${u.is_approved ? '<span style="color:var(--success);">✓ مفعّل</span>' : '<span style="color:var(--danger);">بانتظار الموافقة</span>'}</div>
-      <div style="margin:8px 0;">
-        <button class="btn tiny ${u.is_approved ? 'ghost' : ''}" data-approve="true">${u.is_approved ? 'إلغاء التفعيل' : 'الموافقة على الحساب'}</button>
-      </div>
-      <div class="u-perms">
-        <label><input type="checkbox" class="perm-view" ${u.can_view_spaces?'checked':''}> عرض المساحات</label>
-        <label><input type="checkbox" class="perm-manage" ${u.can_manage_spaces?'checked':''}> إنشاء/تعديل الأرفف</label>
-        <label><input type="checkbox" class="perm-scan" ${u.can_scan?'checked':''}> مسح وتحديث الباركود</label>
-      </div>
-
-      <div style="margin-top:10px; padding-top:10px; border-top:1px dashed var(--border);">
-        <label style="display:flex; align-items:center; gap:6px; font-weight:600; font-size:12.5px; cursor:pointer;">
-          <input type="checkbox" class="restrict-branch-toggle" ${branchRestricted?'checked':''}> تقييد الوصول بفروع محددة
-        </label>
-        <div class="branch-checks" style="display:${branchRestricted?'flex':'none'}; flex-wrap:wrap; gap:8px; margin-top:6px;">
-          ${(allBranches||[]).map(b => `<label style="font-size:12px; display:flex; align-items:center; gap:4px;"><input type="checkbox" class="branch-chk" value="${b.id}" ${(u.allowed_branch_ids||[]).includes(b.id)?'checked':''}> ${b.name}</label>`).join('')}
+    <div class="user-acc" data-id="${u.id}">
+      <div class="user-acc-header">
+        <div class="ua-avatar">${(u.full_name||u.email).charAt(0).toUpperCase()}</div>
+        <div class="ua-info">
+          <div class="ua-name">${u.full_name || u.email}</div>
+          <div class="ua-sub">${u.email}${u.phone ? ' · ' + u.phone : ''}</div>
         </div>
-      </div>
-
-      <div style="margin-top:10px;">
-        <label style="display:flex; align-items:center; gap:6px; font-weight:600; font-size:12.5px; cursor:pointer;">
-          <input type="checkbox" class="restrict-reports-toggle" ${reportsRestricted?'checked':''}> تقييد الوصول بتقارير محددة
-        </label>
-        <div class="report-checks" style="display:${reportsRestricted?'flex':'none'}; flex-wrap:wrap; gap:8px; margin-top:6px;">
-          ${Object.entries(REPORT_TAB_LABELS).map(([key,label]) => `<label style="font-size:12px; display:flex; align-items:center; gap:4px;"><input type="checkbox" class="report-chk" value="${key}" ${(u.allowed_reports||[]).includes(key)?'checked':''}> ${label}</label>`).join('')}
+        <div class="ua-badges">
+          <span class="ua-status-badge ${u.is_approved?'ok':'pending'}">${u.is_approved ? '✓ مفعّل' : 'بانتظار الموافقة'}</span>
+          <span class="ua-perm-chips">${permChips(u)}</span>
         </div>
+        <i class="ti ti-chevron-down ua-chevron"></i>
       </div>
+      <div class="user-acc-body">
+        <div style="margin:12px 0 8px;">
+          <button class="btn tiny ${u.is_approved ? 'ghost' : ''}" data-approve="true">${u.is_approved ? 'إلغاء التفعيل' : 'الموافقة على الحساب'}</button>
+        </div>
+        <div class="u-perms">
+          <label><input type="checkbox" class="perm-view" ${u.can_view_spaces?'checked':''}> عرض المساحات</label>
+          <label><input type="checkbox" class="perm-manage" ${u.can_manage_spaces?'checked':''}> إنشاء/تعديل الأرفف</label>
+          <label><input type="checkbox" class="perm-scan" ${u.can_scan?'checked':''}> مسح وتحديث الباركود</label>
+        </div>
 
-      <button class="btn small save-perm-btn" style="margin-top:12px;">حفظ</button>
+        <div style="margin-top:10px; padding-top:10px; border-top:1px dashed var(--border);">
+          <label style="display:flex; align-items:center; gap:6px; font-weight:600; font-size:12.5px; cursor:pointer;">
+            <input type="checkbox" class="restrict-branch-toggle" ${branchRestricted?'checked':''}> تقييد الوصول بفروع محددة
+          </label>
+          <div class="branch-checks" style="display:${branchRestricted?'flex':'none'}; flex-wrap:wrap; gap:8px; margin-top:6px;">
+            ${(allBranches||[]).map(b => `<label style="font-size:12px; display:flex; align-items:center; gap:4px;"><input type="checkbox" class="branch-chk" value="${b.id}" ${(u.allowed_branch_ids||[]).includes(b.id)?'checked':''}> ${b.name}</label>`).join('')}
+          </div>
+        </div>
+
+        <div style="margin-top:10px;">
+          <label style="display:flex; align-items:center; gap:6px; font-weight:600; font-size:12.5px; cursor:pointer;">
+            <input type="checkbox" class="restrict-reports-toggle" ${reportsRestricted?'checked':''}> تقييد الوصول بتقارير محددة
+          </label>
+          <div class="report-checks" style="display:${reportsRestricted?'flex':'none'}; flex-wrap:wrap; gap:8px; margin-top:6px;">
+            ${Object.entries(REPORT_TAB_LABELS).map(([key,label]) => `<label style="font-size:12px; display:flex; align-items:center; gap:4px;"><input type="checkbox" class="report-chk" value="${key}" ${(u.allowed_reports||[]).includes(key)?'checked':''}> ${label}</label>`).join('')}
+          </div>
+        </div>
+
+        <button class="btn small save-perm-btn" style="margin-top:12px;">حفظ</button>
+      </div>
     </div>`;
   }).join('');
 
+  document.querySelectorAll('.user-acc .user-acc-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const acc = header.closest('.user-acc');
+      const isOpen = acc.classList.contains('open');
+      document.querySelectorAll('.user-acc.open').forEach(o => { if(o !== acc) o.classList.remove('open'); });
+      acc.classList.toggle('open', !isOpen);
+    });
+  });
+
   document.querySelectorAll('.restrict-branch-toggle').forEach(t => {
-    t.addEventListener('change', (e) => { t.closest('.user-row').querySelector('.branch-checks').style.display = e.target.checked ? 'flex' : 'none'; });
+    t.addEventListener('change', (e) => { t.closest('.user-acc').querySelector('.branch-checks').style.display = e.target.checked ? 'flex' : 'none'; });
   });
   document.querySelectorAll('.restrict-reports-toggle').forEach(t => {
-    t.addEventListener('change', (e) => { t.closest('.user-row').querySelector('.report-checks').style.display = e.target.checked ? 'flex' : 'none'; });
+    t.addEventListener('change', (e) => { t.closest('.user-acc').querySelector('.report-checks').style.display = e.target.checked ? 'flex' : 'none'; });
   });
 
   document.querySelectorAll('[data-approve]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const row = btn.closest('.user-row');
-      const userId = row.dataset.id;
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const acc = btn.closest('.user-acc');
+      const userId = acc.dataset.id;
       const currentlyApproved = btn.textContent.includes('إلغاء');
       btn.disabled = true;
       const { error } = await sb.rpc('set_user_approval', { p_user_id: userId, p_approved: !currentlyApproved });
@@ -1193,31 +1245,30 @@ async function loadUsersList(){
   });
 
   document.querySelectorAll('.save-perm-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const row = btn.closest('.user-row');
-      const userId = row.dataset.id;
-      const canView = row.querySelector('.perm-view').checked;
-      const canManage = row.querySelector('.perm-manage').checked;
-      const canScanPerm = row.querySelector('.perm-scan').checked;
-      const branchRestrict = row.querySelector('.restrict-branch-toggle').checked;
-      const reportsRestrict = row.querySelector('.restrict-reports-toggle').checked;
-      const allowedBranches = branchRestrict ? Array.from(row.querySelectorAll('.branch-chk:checked')).map(c => c.value) : null;
-      const allowedReports = reportsRestrict ? Array.from(row.querySelectorAll('.report-chk:checked')).map(c => c.value) : null;
-      const originalText = btn.textContent;
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const acc = btn.closest('.user-acc');
+      const userId = acc.dataset.id;
+      const canView = acc.querySelector('.perm-view').checked;
+      const canManage = acc.querySelector('.perm-manage').checked;
+      const canScanPerm = acc.querySelector('.perm-scan').checked;
+      const branchRestrict = acc.querySelector('.restrict-branch-toggle').checked;
+      const reportsRestrict = acc.querySelector('.restrict-reports-toggle').checked;
+      const allowedBranches = branchRestrict ? Array.from(acc.querySelectorAll('.branch-chk:checked')).map(c => c.value) : null;
+      const allowedReports = reportsRestrict ? Array.from(acc.querySelectorAll('.report-chk:checked')).map(c => c.value) : null;
       btn.disabled = true; btn.textContent = 'جاري الحفظ...';
       const { error } = await sb.rpc('update_user_permissions', {
         p_user_id: userId, p_can_view_spaces: canView, p_can_manage_spaces: canManage, p_can_scan: canScanPerm,
         p_allowed_branch_ids: allowedBranches, p_allowed_reports: allowedReports
       });
       if(error){
-        btn.disabled = false; btn.textContent = originalText;
+        btn.disabled = false; btn.textContent = 'حفظ';
         showToast('فشل الحفظ: ' + error.message, true);
         return;
       }
-      btn.textContent = '✓ اتحفظ';
-      btn.style.background = 'var(--success)';
       showToast('تم حفظ الصلاحيات بنجاح.');
-      setTimeout(() => { btn.disabled = false; btn.textContent = originalText; btn.style.background = ''; }, 1800);
+      acc.classList.remove('open');
+      await loadUsersList();
     });
   });
 }
