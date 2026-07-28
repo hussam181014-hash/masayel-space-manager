@@ -2318,18 +2318,18 @@ function renderRackPartsGrid(data, rackCode){
   const partNums = Array.from(new Set(frontParts.map(p => p.part_num))).sort((a,b) => a-b);
 
   function shelfIllustration(parts){
-    const sorted = [...parts].sort((a,b) => b.level - a.level);
+    const sorted = [...parts].sort((a,b) => a.level - b.level);
     const box = document.createElement('div');
-    box.style.cssText = 'min-width:110px; border:2px solid var(--border-strong); border-radius:12px; overflow:hidden; background:var(--panel); display:flex; flex-direction:column;';
+    box.style.cssText = 'border:2px solid var(--border-strong); border-radius:12px; overflow:hidden; background:var(--panel); display:flex;';
     sorted.forEach((p, i) => {
-      const row = document.createElement('div');
-      row.style.cssText = `display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; ${i < sorted.length-1 ? 'border-bottom:1px dashed var(--border-strong);' : ''}`;
+      const cell = document.createElement('div');
+      cell.style.cssText = `display:flex; flex-direction:column; align-items:center; gap:6px; padding:10px 12px; ${i < sorted.length-1 ? 'border-left:1px dashed var(--border-strong);' : ''}`;
       const lbl = document.createElement('span');
       lbl.style.cssText = 'font-size:11px; color:var(--muted); font-weight:600;';
       lbl.textContent = 'L0' + p.level;
-      row.appendChild(lbl);
-      row.appendChild(makeLevelSlot(p, rackCode));
-      box.appendChild(row);
+      cell.appendChild(lbl);
+      cell.appendChild(makeLevelSlot(p, rackCode));
+      box.appendChild(cell);
     });
     return box;
   }
