@@ -962,13 +962,20 @@ $('auth-submit').addEventListener('click', async () => {
       return;
     }
     if(isSignup && res.data.user && !res.data.session){
-      showToast('تم إنشاء الحساب — جرب تسجيل الدخول دلوقتي.');
+      showToast('تم إنشاء الحساب — روح افتح إيميلك ودوس على رابط التأكيد الأول، وبعدين سجّل دخول.');
       $('auth-submit').disabled = false;
       return;
     }
     await enterApp();
   }catch(e){
-    showAuthErr(e.message || 'حصل خطأ، حاول تاني.');
+    const msg = e.message || '';
+    if(msg.includes('Email not confirmed')){
+      showAuthErr('لسه مأكدتش إيميلك — افتح صندوق الوارد ودوس على رابط التأكيد الأول قبل ما تسجّل دخول.');
+    } else if(msg.includes('Invalid login credentials')){
+      showAuthErr('البريد أو كلمة المرور غلط.');
+    } else {
+      showAuthErr(msg || 'حصل خطأ، حاول تاني.');
+    }
     $('auth-submit').disabled = false;
   }
 });
