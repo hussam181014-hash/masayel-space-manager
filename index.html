@@ -1183,6 +1183,7 @@ async function loadUsersList(){
       <div class="user-acc-body">
         <div style="margin:12px 0 8px;">
           <button class="btn tiny ${u.is_approved ? 'ghost' : ''}" data-approve="true">${u.is_approved ? 'إلغاء التفعيل' : 'الموافقة على الحساب'}</button>
+          <button class="btn tiny danger" data-delete-user="true" style="margin-inline-start:6px;"><i class="ti ti-trash"></i> حذف الحساب</button>
         </div>
         <div class="u-perms">
           <label><input type="checkbox" class="perm-view" ${u.can_view_spaces?'checked':''}> عرض المساحات</label>
@@ -1241,6 +1242,43 @@ async function loadUsersList(){
       if(error){ showToast('فشل التحديث: ' + error.message, true); return; }
       showToast(currentlyApproved ? 'تم إلغاء تفعيل الحساب.' : 'تم تفعيل الحساب.');
       await loadUsersList();
+    });
+  });
+
+  document.querySelectorAll('[data-delete-user]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const acc = btn.closest('.user-acc');
+      const userId = acc.dataset.id;
+      const userName = acc.querySelector('.ua-name').textContent;
+      openModal(`
+        <div style="padding:20px;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
+            <div style="font-weight:700; color:var(--danger);"><i class="ti ti-alert-triangle"></i> حذف الحساب نهائيًا</div>
+            <a id="close-user-delete" style="color:var(--muted); cursor:pointer; font-size:18px; line-height:1;">✕</a>
+          </div>
+          <p style="font-size:13px; color:var(--muted); margin-bottom:14px;">
+            هيتمسح حساب <b style="color:var(--text);">${userName}</b> نهائيًا ومش هينفع يترجع — هيفقد كل صلاحياته ومش هيقدر يسجّل دخول تاني.
+            اكتب "حذف" للتأكيد.
+          </p>
+          <div class="field"><input type="text" id="udm-confirm" placeholder="حذف" style="direction:rtl;"></div>
+          <button class="btn danger small" id="udm-confirm-btn">حذف الحساب نهائيًا</button>
+          <div class="err" id="udm-err"></div>
+        </div>`);
+      $('close-user-delete').addEventListener('click', closeModal);
+      $('udm-confirm-btn').addEventListener('click', async () => {
+        $('udm-err').style.display = 'none';
+        if($('udm-confirm').value.trim() !== 'حذف'){
+          $('udm-err').textContent = 'اكتب "حذف" بالظبط للتأكيد.'; $('udm-err').style.display = 'block'; return;
+        }
+        $('udm-confirm-btn').disabled = true;
+        const { error } = await sb.rpc('delete_user_account', { p_user_id: userId });
+        $('udm-confirm-btn').disabled = false;
+        if(error){ $('udm-err').textContent = error.message; $('udm-err').style.display = 'block'; return; }
+        showToast('تم حذف الحساب نهائيًا.');
+        closeModal();
+        await loadUsersList();
+      });
     });
   });
 
