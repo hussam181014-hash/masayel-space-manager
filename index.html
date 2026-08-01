@@ -77,7 +77,7 @@
   #auth-screen p.sub{color:var(--muted); font-size:13px; margin-bottom:20px;}
   .field{margin-bottom:var(--sp-4);}
   .field label{display:block; font-size:13px; color:var(--muted); margin-bottom:6px; font-weight:500;}
-  input[type=email], input[type=password], input[type=text], input[type=number], input[type=tel], textarea, select{
+  input[type=email], input[type=password], input[type=text], input[type=number], input[type=tel], input[type=date], input[type=file], textarea, select{
     width:100%; background:var(--panel); border:1px solid transparent; color:var(--text);
     border-radius:var(--radius-input); padding:14px 16px; font-family:var(--font-ui); font-size:14.5px; outline:none;
     transition:border-color .2s ease-out, background .2s ease-out;
@@ -678,6 +678,7 @@
       <div class="nav-item" id="nav-go-scan" data-section="scan-app"><i class="ti ti-qrcode"></i><span>مسح الباركود</span></div>
       <div class="nav-item" id="nav-go-reports" data-section="reports-app" style="display:none;"><i class="ti ti-chart-bar"></i><span>تقارير المساحات</span></div>
       <div class="nav-item" id="nav-go-categories" data-section="categories-app" style="display:none;"><i class="ti ti-tag"></i><span>إدارة التصنيفات</span></div>
+      <div class="nav-item" id="nav-go-suppliers" data-section="suppliers-app" style="display:none;"><i class="ti ti-truck-delivery"></i><span>إدارة الموردين</span></div>
       <div class="nav-item" id="nav-go-users" data-section="users-app" style="display:none;"><i class="ti ti-users"></i><span>إدارة المستخدمين</span></div>
     </div>
     <div class="sidebar-profile">
@@ -753,6 +754,23 @@
   </div>
 
   <!-- ============ إدارة صلاحيات المستخدمين ============ -->
+  <div id="suppliers-app" class="content-section" style="display:none;">
+    <div class="wrap" style="max-width:1100px; margin:40px auto;">
+      <a class="menu-back" id="suppliers-back-menu"><i class="ti ti-arrow-right"></i> القائمة الرئيسية</a>
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+        <h2 style="margin-bottom:0;">إدارة الموردين</h2>
+        <div style="display:flex; gap:8px;">
+          <button class="btn small ghost" id="bulk-import-btn" style="width:auto; padding:10px 18px;"><i class="ti ti-upload"></i> رفع بيانات شهر</button>
+          <button class="btn small" id="add-supplier-btn" style="width:auto; padding:10px 20px;"><i class="ti ti-plus"></i> إضافة مورد</button>
+        </div>
+      </div>
+      <div class="field" style="max-width:340px; margin-bottom:14px;">
+        <input type="text" id="supplier-list-search" placeholder="ابحث بالاسم أو الكود...">
+      </div>
+      <div id="suppliers-list"><p style="color:var(--muted); font-size:13px;">جاري التحميل...</p></div>
+    </div>
+  </div>
+
   <div id="users-app" class="content-section" style="display:none;">
     <div class="wrap" style="max-width:640px; margin:40px auto;">
       <a class="menu-back" id="users-back-menu"><i class="ti ti-arrow-right"></i> القائمة الرئيسية</a>
@@ -1306,7 +1324,7 @@ let currentPerms = { can_view_spaces:false, can_manage_spaces:false, can_scan:fa
 const SECTION_LABELS = {
   'dashboard-home': 'الرئيسية', 'app': 'إنشاء رف جديد', 'scan-app': 'مسح الباركود',
   'reports-app': 'تقارير المساحات', 'categories-app': 'إدارة التصنيفات',
-  'users-app': 'إدارة المستخدمين', 'restricted-screen': 'إنشاء الأرفف', 'profile-page': 'الملف الشخصي'
+  'users-app': 'إدارة المستخدمين', 'suppliers-app': 'إدارة الموردين', 'restricted-screen': 'إنشاء الأرفف', 'profile-page': 'الملف الشخصي'
 };
 
 function showSection(id){
@@ -1358,6 +1376,10 @@ async function goToSection(target){
   } else if(target === 'users-app'){
     showSection('users-app');
     await loadUsersList();
+  } else if(target === 'suppliers-app'){
+    showSection('suppliers-app');
+    supplierPage = 1;
+    await loadSuppliersList();
   } else if(target === 'profile-page'){
     showSection('profile-page');
     await loadProfilePage();
@@ -1378,6 +1400,7 @@ function applyPermissionVisibility(){
   const showCreateRack = currentRole === 'owner' || currentPerms.can_manage_spaces;
   const showScan = currentRole === 'owner' || currentPerms.can_scan || currentPerms.can_view_spaces;
   ['nav-go-users','dash-go-users'].forEach(id => $(id).style.display = showUsers ? '' : 'none');
+  $('nav-go-suppliers').style.display = showUsers ? '' : 'none';
   ['nav-go-categories','dash-go-categories'].forEach(id => $(id).style.display = showCategories ? '' : 'none');
   ['nav-go-reports','dash-go-reports'].forEach(id => $(id).style.display = showReports ? '' : 'none');
   ['nav-go-rack','dash-go-rack'].forEach(id => $(id).style.display = showCreateRack ? '' : 'none');
@@ -1545,6 +1568,503 @@ $('restricted-go-scan').addEventListener('click', () => goToSection('scan-app'))
 
 /* ============ إدارة صلاحيات المستخدمين ============ */
 $('users-back-menu').addEventListener('click', () => goToSection('dashboard-home'));
+$('suppliers-back-menu').addEventListener('click', () => goToSection('dashboard-home'));
+
+/* ================= إدارة الموردين ================= */
+let supplierPage = 1;
+let supplierSearch = '';
+const SUPPLIER_PAGE_SIZE = 25;
+let supplierSearchTimer = null;
+
+$('supplier-list-search').addEventListener('input', (e) => {
+  clearTimeout(supplierSearchTimer);
+  supplierSearchTimer = setTimeout(() => {
+    supplierSearch = e.target.value.trim();
+    supplierPage = 1;
+    loadSuppliersList();
+  }, 300);
+});
+
+$('add-supplier-btn').addEventListener('click', () => openSupplierEditor(null));
+
+/* ================= الرفع الجماعي للبيانات الشهرية ================= */
+const BULK_COLUMNS = [
+  { key:'supplier_code', label:'كود المورد', required:true },
+  { key:'sales_revenue', label:'قيمة المبيعات' },
+  { key:'qty_sold', label:'الكمية المباعة' },
+  { key:'purchase_net_cost', label:'صافي المشتريات' },
+  { key:'rent_due', label:'الإيجار الثابت المستحق' },
+  { key:'rent_paid', label:'الإيجار الثابت المدفوع' },
+  { key:'pct_rent_due', label:'إيجار النسبة المستحق (يتحسب تلقائي لو فاضي)' },
+  { key:'collected_invoice_discount', label:'خصم على الفاتورة' },
+  { key:'collected_free_goods', label:'بضاعة مجانية' },
+  { key:'collected_credit_notes', label:'إشعارات خصم' },
+  { key:'support_amount', label:'الدعم' },
+  { key:'discount_amount', label:'الخصومات' },
+];
+
+function parseCSV(text){
+  const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).filter(l => l.trim());
+  if(!lines.length) return { headers:[], rows:[] };
+  const splitLine = (line) => {
+    const out = []; let cur = ''; let inQ = false;
+    for(let i=0; i<line.length; i++){
+      const ch = line[i];
+      if(ch === '"'){ if(inQ && line[i+1] === '"'){ cur += '"'; i++; } else inQ = !inQ; }
+      else if(ch === ',' && !inQ){ out.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    out.push(cur);
+    return out.map(x => x.trim());
+  };
+  const headers = splitLine(lines[0]);
+  const rows = lines.slice(1).map(l => {
+    const cells = splitLine(l);
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = cells[i] ?? '');
+    return obj;
+  });
+  return { headers, rows };
+}
+
+$('bulk-import-btn').addEventListener('click', () => {
+  const now = new Date();
+  openModal(`
+    <div style="padding:20px;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+        <div style="font-weight:700;">رفع البيانات الشهرية دفعة واحدة</div>
+        <a id="bi-close" style="color:var(--muted); cursor:pointer; font-size:18px; line-height:1;">✕</a>
+      </div>
+      <p style="font-size:12px; color:var(--muted); margin-bottom:14px;">
+        ارفع ملف CSV فيه بيانات كل الموردين للشهر ده. الربط بيتم بـ<b>كود المورد</b>.
+      </p>
+
+      <div class="grid2">
+        <div class="field"><label>الشهر</label>
+          <select id="bi-month">${MONTH_NAMES.map((nm,i) => `<option value="${i+1}" ${i+1===now.getMonth()+1?'selected':''}>${nm}</option>`).join('')}</select>
+        </div>
+        <div class="field"><label>السنة</label><input type="number" id="bi-year" value="${now.getFullYear()}" style="direction:ltr;"></div>
+      </div>
+
+      <div style="background:var(--panel-2); border-radius:10px; padding:12px; margin-bottom:14px;">
+        <div style="font-size:12px; font-weight:700; margin-bottom:7px;">أعمدة الملف المتوقعة</div>
+        <div style="font-size:11px; color:var(--muted); line-height:1.9;">
+          ${BULK_COLUMNS.map(c => `<code style="background:var(--panel); padding:2px 6px; border-radius:4px; direction:ltr; display:inline-block;">${c.key}</code>${c.required ? ' <b style="color:var(--danger);">*</b>' : ''}`).join(' · ')}
+        </div>
+        <button class="btn tiny ghost" id="bi-template" style="margin-top:10px;"><i class="ti ti-download"></i> نزّل ملف نموذجي</button>
+      </div>
+
+      <div class="field"><label>ملف CSV</label><input type="file" id="bi-file" accept=".csv,text/csv"></div>
+      <div id="bi-preview"></div>
+      <button class="btn small" id="bi-upload" disabled>رفع البيانات</button>
+      <div class="err" id="bi-err"></div>
+    </div>`);
+
+  let parsedRows = [];
+
+  $('bi-close').addEventListener('click', closeModal);
+
+  $('bi-template').addEventListener('click', () => {
+    const header = BULK_COLUMNS.map(c => c.key).join(',');
+    const sample = ['1001','1500.500','320','8200.000','250.000','250.000','','120.000','60.000','30.000','0','0'].join(',');
+    const csv = '\uFEFF' + header + '\n' + sample + '\n';
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8;' }));
+    link.download = 'نموذج-بيانات-شهرية.csv';
+    link.click();
+  });
+
+  $('bi-file').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const { headers, rows } = parseCSV(reader.result);
+      if(!headers.includes('supplier_code')){
+        $('bi-preview').innerHTML = '<p style="color:var(--danger); font-size:12px;">الملف لازم يحتوي على عمود <code>supplier_code</code>.</p>';
+        $('bi-upload').disabled = true; return;
+      }
+      parsedRows = rows.filter(r => String(r.supplier_code || '').trim() !== '').map(r => {
+        const o = { supplier_code: parseInt(r.supplier_code) };
+        BULK_COLUMNS.slice(1).forEach(c => {
+          const raw = String(r[c.key] ?? '').trim();
+          if(raw !== '') o[c.key] = Number(raw);
+        });
+        return o;
+      });
+      const unknown = headers.filter(h => !BULK_COLUMNS.some(c => c.key === h) && h);
+      $('bi-preview').innerHTML = `
+        <div style="background:var(--panel-2); border-radius:9px; padding:11px; font-size:12px; margin-bottom:12px;">
+          <div>✅ اتقرا <b>${parsedRows.length}</b> صف من الملف.</div>
+          ${unknown.length ? `<div style="color:var(--amber); margin-top:5px;">أعمدة غير معروفة هتتجاهل: ${esc(unknown.join('، '))}</div>` : ''}
+        </div>`;
+      $('bi-upload').disabled = parsedRows.length === 0;
+    };
+    reader.readAsText(file, 'utf-8');
+  });
+
+  $('bi-upload').addEventListener('click', async () => {
+    $('bi-err').style.display = 'none';
+    $('bi-upload').disabled = true; $('bi-upload').textContent = 'جاري الرفع...';
+    const { data, error } = await sb.rpc('bulk_import_monthly', {
+      p_year: Number($('bi-year').value),
+      p_month: Number($('bi-month').value),
+      p_rows: parsedRows
+    });
+    $('bi-upload').disabled = false; $('bi-upload').textContent = 'رفع البيانات';
+    if(error){ $('bi-err').textContent = error.message; $('bi-err').style.display = 'block'; return; }
+    const res = Array.isArray(data) ? data[0] : data;
+    const errs = res.errors || [];
+    $('bi-preview').innerHTML = `
+      <div style="background:var(--panel-2); border-radius:9px; padding:12px; font-size:12px; margin-bottom:12px;">
+        <div style="color:var(--success); font-weight:700;">✅ اترفع ${res.imported} مورد بنجاح.</div>
+        ${res.skipped > 0 ? `<div style="color:var(--amber); margin-top:6px;">⚠️ اتخطى ${res.skipped} صف:</div>
+          <div style="max-height:120px; overflow-y:auto; margin-top:5px; color:var(--muted);">
+            ${errs.slice(0,50).map(e => `<div>كود ${esc(e.code)}: ${esc(e.reason)}</div>`).join('')}
+          </div>` : ''}
+      </div>`;
+    showToast(`تم رفع ${res.imported} سجل شهري.`);
+    await loadSuppliersList();
+  });
+});
+
+async function loadSuppliersList(){
+  const box = $('suppliers-list');
+  box.innerHTML = '<p style="color:var(--muted); font-size:13px;">جاري التحميل...</p>';
+  const { data, error } = await sb.rpc('list_suppliers', {
+    p_search: supplierSearch, p_page: supplierPage, p_page_size: SUPPLIER_PAGE_SIZE
+  });
+  if(error){ box.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+esc(error.message)+'</p>'; return; }
+  if(!data || !data.length){
+    box.innerHTML = `<p style="color:var(--muted); font-size:13px;">${supplierSearch ? 'مفيش نتايج للبحث ده.' : 'مفيش موردين لسه.'}</p>`;
+    return;
+  }
+
+  const total = Number(data[0].total_count) || data.length;
+  const totalPages = Math.max(1, Math.ceil(total / SUPPLIER_PAGE_SIZE));
+  const from = (supplierPage - 1) * SUPPLIER_PAGE_SIZE + 1;
+  const to = Math.min(supplierPage * SUPPLIER_PAGE_SIZE, total);
+
+  const fmtDate = (d) => d ? new Date(d).toLocaleDateString('ar-EG') : '—';
+  const contractBadge = (end) => {
+    if(!end) return '<span style="color:var(--muted);">—</span>';
+    const days = Math.ceil((new Date(end) - Date.now()) / 86400000);
+    if(days < 0) return `<span style="color:var(--danger); font-weight:600;">منتهي</span>`;
+    if(days <= 30) return `<span style="color:var(--amber); font-weight:600;">${days} يوم</span>`;
+    return `<span style="color:var(--success);">${fmtDate(end)}</span>`;
+  };
+
+  box.innerHTML = `
+    <p style="color:var(--muted); font-size:12px; margin-bottom:10px;">بيعرض ${from}–${to} من ${total} مورد</p>
+    <div class="card" style="padding:0;">
+      <table class="rpt-table">
+        <thead><tr><th>الكود</th><th>المورد</th><th>التصنيف</th><th>المساحة</th><th>الإيجار</th><th>نهاية العقد</th><th></th></tr></thead>
+        <tbody>${data.map(s => `
+          <tr>
+            <td class="code" style="font-family:var(--font-mono); font-weight:700;">${s.supplier_code}</td>
+            <td class="wrap" style="font-weight:600;">${esc(s.supplier_name)}</td>
+            <td class="wrap" style="font-size:12px; color:var(--muted);">${esc(s.category || '—')}</td>
+            <td class="num" style="font-size:12px;">${s.units_count > 0
+              ? `<b>${s.units_count}</b> وحدة <span style="color:var(--muted);">/ ${s.racks_count} رف</span>`
+              : '<span style="color:var(--muted);">بدون مساحة</span>'}</td>
+            <td class="num" style="font-size:12px;">${s.rental_value != null ? Number(s.rental_value).toFixed(3) + ' د.ك' : '—'}</td>
+            <td class="num" style="font-size:12px;">${contractBadge(s.contract_end)}</td>
+            <td class="num"><button class="btn tiny ghost sup-edit-btn" data-id="${s.id}"><i class="ti ti-pencil"></i> تعديل</button></td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+    ${totalPages > 1 ? `
+    <div class="pagination">
+      <button class="pg-btn" id="sup-prev" ${supplierPage === 1 ? 'disabled' : ''}><i class="ti ti-chevron-right"></i> السابق</button>
+      <span class="pg-info">صفحة ${supplierPage} من ${totalPages}</span>
+      <button class="pg-btn" id="sup-next" ${supplierPage >= totalPages ? 'disabled' : ''}>التالي <i class="ti ti-chevron-left"></i></button>
+    </div>` : ''}`;
+
+  document.querySelectorAll('.sup-edit-btn').forEach(b =>
+    b.addEventListener('click', () => openSupplierEditor(b.dataset.id)));
+
+  if(totalPages > 1){
+    $('sup-prev').addEventListener('click', () => { if(supplierPage > 1){ supplierPage--; loadSuppliersList(); } });
+    $('sup-next').addEventListener('click', () => { if(supplierPage < totalPages){ supplierPage++; loadSuppliersList(); } });
+  }
+}
+
+const MONTH_NAMES = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+
+async function loadSupplierMonthly(supplierId){
+  const box = $('se-monthly-box');
+  if(!box) return;
+  const { data, error } = await sb.rpc('get_supplier_monthly', { p_supplier_id: supplierId });
+  if(error){ box.innerHTML = '<p style="color:var(--danger); font-size:12px;">'+esc(error.message)+'</p>'; return; }
+  if(!data || !data.length){
+    box.innerHTML = '<p style="color:var(--muted); font-size:12px; padding:10px 0;">مفيش بيانات شهرية متسجّلة — دوس "تسجيل شهر" لإضافة أول شهر.</p>';
+    return;
+  }
+
+  const n = (x) => Number(x || 0).toFixed(3);
+  box.innerHTML = `
+    <div style="max-height:220px; overflow-y:auto; border:1px solid var(--border); border-radius:10px;">
+      <table class="rpt-table" style="font-size:12px;">
+        <thead><tr><th>الشهر</th><th>المبيعات</th><th>المشتريات</th><th>الإيجار</th><th></th></tr></thead>
+        <tbody>${data.map(m => {
+          const bal = Number(m.rent_balance || 0);
+          return `<tr>
+            <td class="num" style="font-weight:600;">${MONTH_NAMES[m.period_month-1]} ${m.period_year}</td>
+            <td class="num">${n(m.sales_revenue)}</td>
+            <td class="num">${n(m.purchase_net_cost)}</td>
+            <td class="num">${bal > 0
+              ? `<span style="color:var(--danger);">متبقي ${n(bal)}</span>`
+              : `<span style="color:var(--success);">مسدّد</span>`}</td>
+            <td class="num">
+              <button class="btn tiny ghost sm-edit" data-id="${m.id}" style="padding:3px 8px;"><i class="ti ti-pencil"></i></button>
+              <button class="btn tiny ghost sm-del" data-id="${m.id}" style="padding:3px 8px; color:var(--danger);"><i class="ti ti-trash"></i></button>
+            </td>
+          </tr>`;
+        }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+
+  box.querySelectorAll('.sm-edit').forEach(b => b.addEventListener('click', () => {
+    const rec = data.find(m => m.id === b.dataset.id);
+    openMonthlyEditor(supplierId, rec);
+  }));
+  box.querySelectorAll('.sm-del').forEach(b => b.addEventListener('click', async () => {
+    const { error } = await sb.rpc('delete_supplier_monthly', { p_id: b.dataset.id });
+    if(error){ showToast('تعذّر الحذف: ' + error.message, true); return; }
+    showToast('تم حذف السجل الشهري.');
+    await loadSupplierMonthly(supplierId);
+  }));
+}
+
+function openMonthlyEditor(supplierId, rec){
+  const isNew = !rec;
+  const now = new Date();
+  const v = (x) => (x === null || x === undefined) ? '' : x;
+  const yr = rec ? rec.period_year : now.getFullYear();
+  const mo = rec ? rec.period_month : (now.getMonth() + 1);
+
+  openModal(`
+    <div style="padding:20px;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
+        <div style="font-weight:700;">${isNew ? 'تسجيل بيانات شهر' : 'تعديل بيانات ' + MONTH_NAMES[mo-1] + ' ' + yr}</div>
+        <a id="sm-close" style="color:var(--muted); cursor:pointer; font-size:18px; line-height:1;">✕</a>
+      </div>
+
+      <div class="grid2">
+        <div class="field"><label>الشهر</label>
+          <select id="sm-month">${MONTH_NAMES.map((nm,i) => `<option value="${i+1}" ${i+1===mo?'selected':''}>${nm}</option>`).join('')}</select>
+        </div>
+        <div class="field"><label>السنة</label><input type="number" id="sm-year" value="${yr}" style="direction:ltr;"></div>
+      </div>
+
+      <div style="font-size:12px; font-weight:700; color:var(--accent); margin:14px 0 8px;">المبيعات والمشتريات</div>
+      <div class="grid2">
+        <div class="field"><label>قيمة المبيعات (د.ك)</label><input type="number" step="0.001" id="sm-sales" value="${v(rec?.sales_revenue)}" style="direction:ltr;"></div>
+        <div class="field"><label>الكمية المباعة</label><input type="number" step="1" id="sm-qty" value="${v(rec?.qty_sold)}" style="direction:ltr;"></div>
+        <div class="field"><label>صافي المشتريات (د.ك)</label><input type="number" step="0.001" id="sm-purchase" value="${v(rec?.purchase_net_cost)}" style="direction:ltr;"></div>
+      </div>
+
+      <div style="font-size:12px; font-weight:700; color:var(--accent); margin:14px 0 8px;">الإيجار الثابت</div>
+      <div class="grid2">
+        <div class="field"><label>المستحق (د.ك)</label><input type="number" step="0.001" id="sm-rentdue" value="${v(rec?.rent_due)}" style="direction:ltr;"></div>
+        <div class="field"><label>المدفوع نقدًا (د.ك)</label><input type="number" step="0.001" id="sm-rentpaid" value="${v(rec?.rent_paid)}" style="direction:ltr;"></div>
+      </div>
+
+      <div style="font-size:12px; font-weight:700; color:var(--accent); margin:14px 0 8px;">إيجار النسبة وطرق تحصيله</div>
+      <div class="field"><label>المستحق كنسبة من المشتريات (د.ك)</label><input type="number" step="0.001" id="sm-pctdue" value="${v(rec?.pct_rent_due)}" style="direction:ltr;"></div>
+      <div class="grid2">
+        <div class="field"><label>خصم على الفاتورة</label><input type="number" step="0.001" id="sm-c-invoice" value="${v(rec?.collected_invoice_discount)}" style="direction:ltr;"></div>
+        <div class="field"><label>بضاعة مجانية</label><input type="number" step="0.001" id="sm-c-goods" value="${v(rec?.collected_free_goods)}" style="direction:ltr;"></div>
+        <div class="field"><label>إشعارات خصم</label><input type="number" step="0.001" id="sm-c-notes" value="${v(rec?.collected_credit_notes)}" style="direction:ltr;"></div>
+      </div>
+      <div id="sm-pct-summary" style="background:var(--panel-2); border-radius:8px; padding:9px 12px; font-size:12px; margin-bottom:10px;"></div>
+
+      <div style="font-size:12px; font-weight:700; color:var(--accent); margin:14px 0 8px;">الدعم والخصومات</div>
+      <div class="grid2">
+        <div class="field"><label>الدعم (د.ك)</label><input type="number" step="0.001" id="sm-support" value="${v(rec?.support_amount)}" style="direction:ltr;"></div>
+        <div class="field"><label>الخصومات (د.ك)</label><input type="number" step="0.001" id="sm-discount" value="${v(rec?.discount_amount)}" style="direction:ltr;"></div>
+      </div>
+
+      <div class="field"><label>ملاحظات</label><textarea id="sm-notes" rows="2">${esc(v(rec?.notes))}</textarea></div>
+
+      <button class="btn small" id="sm-save">حفظ بيانات الشهر</button>
+      <div class="err" id="sm-err"></div>
+    </div>`);
+
+  $('sm-close').addEventListener('click', () => openSupplierEditor(supplierId));
+
+  const updatePctSummary = () => {
+    const nv = (id) => Number($(id).value || 0);
+    const due = nv('sm-pctdue');
+    const collected = nv('sm-c-invoice') + nv('sm-c-goods') + nv('sm-c-notes');
+    const bal = due - collected;
+    $('sm-pct-summary').innerHTML = `
+      <span style="color:var(--muted);">المستحق:</span> <b>${due.toFixed(3)}</b> د.ك &nbsp;·&nbsp;
+      <span style="color:var(--muted);">المحصّل:</span> <b>${collected.toFixed(3)}</b> د.ك &nbsp;·&nbsp;
+      <span style="color:var(--muted);">المتبقي:</span>
+      <b style="color:${bal > 0.0001 ? 'var(--danger)' : bal < -0.0001 ? 'var(--amber)' : 'var(--success)'};">
+        ${bal > 0.0001 ? bal.toFixed(3) + ' د.ك' : bal < -0.0001 ? 'زيادة ' + Math.abs(bal).toFixed(3) : 'مكتمل ✓'}
+      </b>`;
+  };
+  ['sm-pctdue','sm-c-invoice','sm-c-goods','sm-c-notes'].forEach(id =>
+    $(id).addEventListener('input', updatePctSummary));
+  updatePctSummary();
+  $('sm-save').addEventListener('click', async () => {
+    $('sm-err').style.display = 'none';
+    const num = (id) => { const x = $(id).value.trim(); return x === '' ? 0 : Number(x); };
+    $('sm-save').disabled = true;
+    const { error } = await sb.rpc('upsert_supplier_monthly', {
+      p_supplier_id: supplierId,
+      p_year: Number($('sm-year').value), p_month: Number($('sm-month').value),
+      p_sales_revenue: num('sm-sales'), p_qty_sold: num('sm-qty'), p_purchase_net_cost: num('sm-purchase'),
+      p_rent_due: num('sm-rentdue'), p_rent_paid: num('sm-rentpaid'),
+      p_pct_rent_due: num('sm-pctdue'),
+      p_collected_invoice_discount: num('sm-c-invoice'),
+      p_collected_free_goods: num('sm-c-goods'),
+      p_collected_credit_notes: num('sm-c-notes'),
+      p_support_amount: num('sm-support'), p_discount_amount: num('sm-discount'),
+      p_notes: $('sm-notes').value.trim() || null
+    });
+    $('sm-save').disabled = false;
+    if(error){ $('sm-err').textContent = error.message; $('sm-err').style.display = 'block'; return; }
+    showToast('تم حفظ بيانات الشهر.');
+    openSupplierEditor(supplierId);
+  });
+}
+
+async function openSupplierEditor(supplierId){
+  let s = {};
+  if(supplierId){
+    const { data, error } = await sb.rpc('get_supplier_full', { p_id: supplierId });
+    if(error || !data || !data.length){ showToast('تعذّر تحميل بيانات المورد.', true); return; }
+    s = data[0];
+  }
+  const isNew = !supplierId;
+  const v = (x) => (x === null || x === undefined) ? '' : x;
+
+  openModal(`
+    <div style="padding:20px;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
+        <div style="font-weight:700;">${isNew ? 'إضافة مورد جديد' : 'تعديل بيانات المورد'}</div>
+        <a id="se-close" style="color:var(--muted); cursor:pointer; font-size:18px; line-height:1;">✕</a>
+      </div>
+
+      <div style="font-size:12px; font-weight:700; color:var(--accent); margin-bottom:8px;">البيانات الأساسية</div>
+      <div class="grid2">
+        <div class="field"><label>كود المورد *</label><input type="number" id="se-code" value="${v(s.supplier_code)}" style="direction:ltr;"></div>
+        <div class="field"><label>تصنيف المورد</label><input type="text" id="se-category" value="${esc(v(s.category))}"></div>
+      </div>
+      <div class="field"><label>اسم المورد *</label><input type="text" id="se-name" value="${esc(v(s.supplier_name))}"></div>
+
+      <div style="font-size:12px; font-weight:700; color:var(--accent); margin:16px 0 8px;">العقد</div>
+      <div class="grid2">
+        <div class="field"><label>بداية العقد</label><input type="date" id="se-cstart" value="${v(s.contract_start)}"></div>
+        <div class="field"><label>نهاية العقد</label><input type="date" id="se-cend" value="${v(s.contract_end)}"></div>
+        <div class="field"><label>رسوم فتح الملف (د.ك)</label><input type="number" step="0.001" id="se-fee" value="${v(s.file_opening_fee)}" style="direction:ltr;"></div>
+      </div>
+
+      <div style="font-size:12px; font-weight:700; color:var(--accent); margin:16px 0 8px;">نموذج الإيجار</div>
+      <div style="background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:8px;">
+        <label style="display:flex; align-items:center; gap:7px; font-weight:600; font-size:13px; cursor:pointer;">
+          <input type="checkbox" id="se-has-fixed" ${s.has_fixed_rent ? 'checked' : ''}> إيجار ثابت
+        </label>
+        <div id="se-fixed-box" style="display:${s.has_fixed_rent ? 'grid' : 'none'}; margin-top:10px;" class="grid2">
+          <div class="field" style="margin-bottom:0;"><label>المبلغ (د.ك)</label><input type="number" step="0.001" id="se-fixed-amt" value="${v(s.fixed_rent_amount)}" style="direction:ltr;"></div>
+          <div class="field" style="margin-bottom:0;"><label>الدورية</label>
+            <select id="se-fixed-period">
+              <option value="monthly" ${s.fixed_rent_period === 'monthly' ? 'selected' : ''}>شهري</option>
+              <option value="yearly" ${s.fixed_rent_period === 'yearly' ? 'selected' : ''}>سنوي</option>
+              <option value="contract" ${s.fixed_rent_period === 'contract' ? 'selected' : ''}>لمدة العقد</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div style="background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:12px;">
+        <label style="display:flex; align-items:center; gap:7px; font-weight:600; font-size:13px; cursor:pointer;">
+          <input type="checkbox" id="se-has-pct" ${s.has_pct_rent ? 'checked' : ''}> إيجار كنسبة من المشتريات
+        </label>
+        <div id="se-pct-box" style="display:${s.has_pct_rent ? 'block' : 'none'}; margin-top:10px;">
+          <div class="field" style="margin-bottom:0;"><label>النسبة (%)</label><input type="number" step="0.01" id="se-pct-rate" value="${v(s.pct_rent_rate)}" style="direction:ltr;"></div>
+          <p style="font-size:11px; color:var(--muted); margin-top:6px;">بتتحصّل شهريًا بـ3 طرق: خصم على الفاتورة، بضاعة مجانية، إشعارات خصم.</p>
+        </div>
+      </div>
+
+      <div style="font-size:12px; font-weight:700; color:var(--accent); margin:16px 0 8px;">الخصومات والدعم</div>
+      <div class="grid2">
+        <div class="field"><label>نوع الخصم</label><input type="text" id="se-dtype" value="${esc(v(s.discount_type))}"></div>
+        <div class="field"><label>قيمة الدعم (د.ك)</label><input type="number" step="0.001" id="se-support" value="${v(s.support_amount)}" style="direction:ltr;"></div>
+        <div class="field"><label>خصم ١ (%)</label><input type="number" step="0.01" id="se-d1" value="${v(s.discount_pct_1)}" style="direction:ltr;"></div>
+        <div class="field"><label>خصم ٢ (%)</label><input type="number" step="0.01" id="se-d2" value="${v(s.discount_pct_2)}" style="direction:ltr;"></div>
+        <div class="field"><label>خصم ٣ (%)</label><input type="number" step="0.01" id="se-d3" value="${v(s.discount_pct_3)}" style="direction:ltr;"></div>
+      </div>
+
+      ${isNew ? '' : `
+      <div style="font-size:12px; font-weight:700; color:var(--accent); margin:16px 0 8px; display:flex; justify-content:space-between; align-items:center;">
+        <span>البيانات الشهرية (مبيعات، مشتريات، سداد)</span>
+        <button class="btn tiny ghost" id="se-add-month" style="font-weight:600;"><i class="ti ti-plus"></i> تسجيل شهر</button>
+      </div>
+      <div id="se-monthly-box"><p style="color:var(--muted); font-size:12px;">جاري التحميل...</p></div>`}
+
+      <div style="display:flex; gap:8px; margin-top:18px;">
+        <button class="btn small" id="se-save" style="flex:1;">${isNew ? 'إضافة المورد' : 'حفظ البيانات الأساسية'}</button>
+        ${isNew ? '' : '<button class="btn danger small" id="se-delete" style="width:auto; padding:0 18px;"><i class="ti ti-trash"></i></button>'}
+      </div>
+      <div class="err" id="se-err"></div>
+    </div>`);
+
+  $('se-close').addEventListener('click', closeModal);
+  $('se-has-fixed').addEventListener('change', (e) => {
+    $('se-fixed-box').style.display = e.target.checked ? 'grid' : 'none';
+  });
+  $('se-has-pct').addEventListener('change', (e) => {
+    $('se-pct-box').style.display = e.target.checked ? 'block' : 'none';
+  });
+
+  if(!isNew){
+    loadSupplierMonthly(supplierId);
+    $('se-add-month').addEventListener('click', () => openMonthlyEditor(supplierId, null));
+  }
+
+  $('se-save').addEventListener('click', async () => {
+    $('se-err').style.display = 'none';
+    const num = (id) => { const x = $(id).value.trim(); return x === '' ? null : Number(x); };
+    const txt = (id) => { const x = $(id).value.trim(); return x === '' ? null : x; };
+    if(!$('se-code').value.trim() || !$('se-name').value.trim()){
+      $('se-err').textContent = 'كود المورد واسمه مطلوبين.'; $('se-err').style.display = 'block'; return;
+    }
+    $('se-save').disabled = true;
+    const { error } = await sb.rpc('upsert_supplier', {
+      p_id: supplierId, p_supplier_code: num('se-code'), p_supplier_name: $('se-name').value.trim(),
+      p_category: txt('se-category'), p_contract_start: txt('se-cstart'), p_contract_end: txt('se-cend'),
+      p_file_opening_fee: num('se-fee'), p_discount_type: txt('se-dtype'),
+      p_discount_pct_1: num('se-d1'), p_discount_pct_2: num('se-d2'), p_discount_pct_3: num('se-d3'),
+      p_support_amount: num('se-support'),
+      p_has_fixed_rent: $('se-has-fixed').checked,
+      p_fixed_rent_amount: num('se-fixed-amt'),
+      p_fixed_rent_period: $('se-fixed-period').value,
+      p_has_pct_rent: $('se-has-pct').checked,
+      p_pct_rent_rate: num('se-pct-rate')
+    });
+    $('se-save').disabled = false;
+    if(error){ $('se-err').textContent = error.message; $('se-err').style.display = 'block'; return; }
+    showToast(isNew ? 'تم إضافة المورد.' : 'تم حفظ التعديلات.');
+    closeModal();
+    await loadSuppliersList();
+  });
+
+  if(!isNew){
+    $('se-delete').addEventListener('click', async () => {
+      $('se-err').style.display = 'none';
+      const { error } = await sb.rpc('delete_supplier', { p_id: supplierId });
+      if(error){ $('se-err').textContent = error.message; $('se-err').style.display = 'block'; return; }
+      showToast('تم حذف المورد.');
+      closeModal();
+      await loadSuppliersList();
+    });
+  }
+}
 
 const REPORT_TAB_LABELS = {
   map: 'توزيع الأرفف', locationmap: 'خريطة الموقع', overview: 'نظرة عامة', suppliers: 'نسبة كل مورد',
