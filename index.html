@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
 <title>مساحة — نظام إدارة المساحات التجارية</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -23,7 +23,7 @@
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <style>
   :root{
-    --font-ui:'IBM Plex Sans Arabic',sans-serif; --font-mono:'IBM Plex Mono',monospace;
+    --font-ui:'Tajawal',sans-serif; --font-mono:'IBM Plex Mono',monospace;
     --bg:#f8fafc; --bg-2:#f1f5f9; --panel:#ffffff; --panel-2:#f8fafc;
     --border:rgba(15,23,42,.06); --border-strong:rgba(15,23,42,.12);
     --text:#0f172a; --muted:#64748b;
@@ -52,8 +52,15 @@
   .brand{display:flex; align-items:center; gap:10px; margin-bottom:24px;}
   .brand .logo-mark{flex-shrink:0;}
   .brand .brand-text{display:flex; flex-direction:column; line-height:1.35;}
-  .brand h1{font-size:14px; font-weight:600; color:var(--text); letter-spacing:.2px;}
-  .brand .brand-sub{font-size:10.5px; color:var(--muted); font-family:var(--font-mono); letter-spacing:.5px;}
+  .brand h1{font-size:16px; font-weight:800; color:var(--text); letter-spacing:-.2px;}
+  .brand .brand-sub{font-size:10.5px; color:var(--muted); letter-spacing:.2px; font-weight:500;}
+  .wordmark{
+    display:inline-flex; align-items:baseline; gap:5px; font-weight:800; letter-spacing:-.5px;
+  }
+  .wordmark .wm-dot{
+    width:5px; height:5px; border-radius:50%; background:var(--accent); display:inline-block;
+    align-self:center; margin-bottom:-1px;
+  }
 
   .card{
     background:var(--panel-2); border:1px solid var(--border); border-radius:var(--radius-card);
@@ -316,11 +323,32 @@
   .cat-add-sub input{flex:1;}
 
   /* ===== تقارير المساحات ===== */
-  .report-tab-btn.sel{background:var(--accent); color:#ffffff; border-color:var(--accent);}
-  .rpt-table{width:100%; border-collapse:collapse; font-size:13px;}
-  .rpt-table th{text-align:right; padding:9px 10px; color:var(--muted); font-size:11.5px; border-bottom:1px solid var(--border-strong); white-space:nowrap;}
-  .rpt-table td{padding:9px 10px; border-bottom:1px solid var(--border); white-space:nowrap;}
-  .rpt-table tbody tr:hover{background:var(--panel-2);}
+  .report-tabs{
+    display:flex; gap:22px; flex-wrap:wrap; border-bottom:1px solid var(--border); margin-bottom:18px;
+  }
+  .report-tab-btn{
+    background:none; border:none; padding:10px 2px; margin-bottom:-1px; cursor:pointer;
+    font-family:var(--font-ui); font-size:13.5px; font-weight:500; color:var(--muted);
+    display:inline-flex; align-items:center; gap:6px; border-bottom:2px solid transparent;
+    transition:color .15s, border-color .15s; white-space:nowrap;
+  }
+  .report-tab-btn i{font-size:15px;}
+  .report-tab-btn:hover{color:var(--text);}
+  .report-tab-btn.sel{color:var(--accent); border-bottom-color:var(--accent); font-weight:700;}
+  .rpt-table-wrap{max-height:65vh; overflow:auto; border-radius:var(--radius-card);}
+  .rpt-table{width:100%; border-collapse:separate; border-spacing:0; font-size:13px;}
+  .rpt-table th{
+    position:sticky; top:0; z-index:2;
+    text-align:right; padding:11px 12px; color:var(--muted); font-size:11.5px; font-weight:700;
+    background:var(--panel-2); border-bottom:1.5px solid var(--border-strong); white-space:nowrap;
+  }
+  .rpt-table td{padding:10px 12px; border-bottom:1px solid var(--border); vertical-align:middle;}
+  .rpt-table tbody tr:nth-child(even){background:color-mix(in srgb, var(--panel-2) 45%, transparent);}
+  .rpt-table tbody tr:hover{background:var(--accent-dim);}
+  .rpt-table tbody tr:last-child td{border-bottom:none;}
+  /* الأعمدة الرقمية/الأكواد تفضل سطر واحد، والنصوص الطويلة تلتف */
+  .rpt-table td.num, .rpt-table td.code{white-space:nowrap;}
+  .rpt-table td.wrap{white-space:normal; min-width:150px; line-height:1.5;}
   .score-bar{position:relative; width:100px; height:8px; background:var(--panel-2); border-radius:5px; overflow:hidden; display:inline-block; vertical-align:middle; margin-left:8px;}
   .score-bar .fill{position:absolute; top:0; right:0; height:100%; background:linear-gradient(90deg, var(--accent), var(--accent-2)); border-radius:5px;}
   .kpi-mini{background:var(--panel-2); border:1px solid var(--border); border-radius:12px; padding:14px; text-align:center;}
@@ -541,7 +569,7 @@
     </svg>
     <div class="brand-text">
       <h1 id="auth-org-name">جمعية المسايل التعاونية</h1>
-      <span class="brand-sub" id="auth-powered-by">بواسطة مساحة</span>
+      <span class="brand-sub" id="auth-powered-by">بواسطة <span class="wordmark">مساحة<span class="wm-dot"></span></span></span>
     </div>
   </div>
 
@@ -577,7 +605,7 @@
         <rect x="6" y="15" width="6" height="6" rx="1" fill="none" stroke="var(--accent)" stroke-width="1.1"/>
         <rect x="14" y="15" width="6" height="6" rx="1" fill="var(--amber)"/>
       </svg>
-      <div class="brand-text"><h1 id="sidebar-org-name" style="font-size:13px;">جمعية المسايل التعاونية</h1><span class="brand-sub" id="sidebar-powered-by">بواسطة مساحة</span></div>
+      <div class="brand-text"><h1 id="sidebar-org-name" style="font-size:13px;">جمعية المسايل التعاونية</h1><span class="brand-sub" id="sidebar-powered-by">بواسطة <span class="wordmark">مساحة<span class="wm-dot"></span></span></span></div>
     </div>
     <div id="notif-bell" style="position:relative; margin:0 2px 12px; cursor:pointer; display:flex; align-items:center; gap:8px;
       padding:10px 12px; border-radius:10px; background:var(--panel-2); border:1px solid var(--border);">
@@ -707,17 +735,17 @@
         </div>
       </div>
 
-      <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
-        <button class="btn tiny report-tab-btn sel" data-tab="map"><i class="ti ti-layout-grid"></i> توزيع الأرفف</button>
-        <button class="btn tiny ghost report-tab-btn" data-tab="locationmap"><i class="ti ti-map-2"></i> خريطة الموقع</button>
-        <button class="btn tiny ghost report-tab-btn" data-tab="overview"><i class="ti ti-layout-dashboard"></i> نظرة عامة</button>
-        <button class="btn tiny ghost report-tab-btn" data-tab="suppliers"><i class="ti ti-percentage"></i> نسبة كل مورد</button>
-        <button class="btn tiny ghost report-tab-btn" data-tab="structure"><i class="ti ti-sitemap"></i> التصنيف الهيكلي</button>
-        <button class="btn tiny ghost report-tab-btn" data-tab="categories"><i class="ti ti-tags"></i> توزيع التصنيفات</button>
-        <button class="btn tiny ghost report-tab-btn" data-tab="turnover"><i class="ti ti-refresh"></i> معدل الدوران</button>
-        <button class="btn tiny ghost report-tab-btn" data-tab="nospace"><i class="ti ti-alert-circle"></i> موردين بلا مساحة</button>
-        <button class="btn tiny ghost report-tab-btn" data-tab="supplierprofile"><i class="ti ti-user-search"></i> ملف المورد</button>
-        <button class="btn tiny ghost report-tab-btn" id="activitylog-tab-btn" data-tab="activitylog" style="display:none;"><i class="ti ti-history"></i> سجل النشاط</button>
+      <div class="report-tabs">
+        <button class="report-tab-btn sel" data-tab="map"><i class="ti ti-layout-grid"></i> توزيع الأرفف</button>
+        <button class="report-tab-btn" data-tab="locationmap"><i class="ti ti-map-2"></i> خريطة الموقع</button>
+        <button class="report-tab-btn" data-tab="overview"><i class="ti ti-layout-dashboard"></i> نظرة عامة</button>
+        <button class="report-tab-btn" data-tab="suppliers"><i class="ti ti-percentage"></i> نسبة كل مورد</button>
+        <button class="report-tab-btn" data-tab="structure"><i class="ti ti-sitemap"></i> التصنيف الهيكلي</button>
+        <button class="report-tab-btn" data-tab="categories"><i class="ti ti-tags"></i> توزيع التصنيفات</button>
+        <button class="report-tab-btn" data-tab="turnover"><i class="ti ti-refresh"></i> معدل الدوران</button>
+        <button class="report-tab-btn" data-tab="nospace"><i class="ti ti-alert-circle"></i> موردين بلا مساحة</button>
+        <button class="report-tab-btn" data-tab="supplierprofile"><i class="ti ti-user-search"></i> ملف المورد</button>
+        <button class="report-tab-btn" id="activitylog-tab-btn" data-tab="activitylog" style="display:none;"><i class="ti ti-history"></i> سجل النشاط</button>
       </div>
 
       <div id="report-content"><p style="color:var(--muted); font-size:13px;">جاري التحميل...</p></div>
@@ -1216,9 +1244,9 @@ async function goToSection(target){
     } else {
       document.querySelectorAll('.report-tab-btn').forEach(btn => { btn.style.display = ''; });
     }
-    document.querySelectorAll('.report-tab-btn').forEach(b => { b.classList.remove('sel'); b.classList.add('ghost'); });
+    document.querySelectorAll('.report-tab-btn').forEach(b => b.classList.remove('sel'));
     const firstBtn = document.querySelector(`[data-tab="${firstAllowedTab}"]`);
-    if(firstBtn){ firstBtn.classList.add('sel'); firstBtn.classList.remove('ghost'); }
+    if(firstBtn){ firstBtn.classList.add('sel'); }
     await loadReportTab(firstAllowedTab);
   } else if(target === 'categories-app'){
     showSection('categories-app');
@@ -1697,7 +1725,7 @@ function renderDonutChart(canvasId, items){
       datasets: [{ data: items.map(i => i.value), backgroundColor: CHART_COLORS, borderColor: '#ffffff', borderWidth: 2 }]
     },
     options: {
-      plugins: { legend: { position: 'bottom', labels: { color: '#64748b', font: { family: 'IBM Plex Sans Arabic', size: 12 }, padding: 14 } } },
+      plugins: { legend: { position: 'bottom', labels: { color: '#64748b', font: { family: 'Tajawal', size: 12 }, padding: 14 } } },
       cutout: '62%'
     }
   });
@@ -1718,8 +1746,8 @@ function renderBarChart(canvasId, items){
       maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
-        x: { ticks: { color: '#64748b', font: { family: 'IBM Plex Sans Arabic', size: 11 } }, grid: { color: 'rgba(15,23,42,.06)' } },
-        y: { ticks: { color: '#0f172a', font: { family: 'IBM Plex Sans Arabic', size: 12 } }, grid: { display: false } }
+        x: { ticks: { color: '#64748b', font: { family: 'Tajawal', size: 11 } }, grid: { color: 'rgba(15,23,42,.06)' } },
+        y: { ticks: { color: '#0f172a', font: { family: 'Tajawal', size: 12 } }, grid: { display: false } }
       }
     }
   });
@@ -1730,8 +1758,8 @@ $('reports-back-menu').addEventListener('click', () => goToSection('dashboard-ho
 
 document.querySelectorAll('.report-tab-btn').forEach(btn => {
   btn.addEventListener('click', async () => {
-    document.querySelectorAll('.report-tab-btn').forEach(b => { b.classList.remove('sel'); b.classList.add('ghost'); });
-    btn.classList.add('sel'); btn.classList.remove('ghost');
+    document.querySelectorAll('.report-tab-btn').forEach(b => b.classList.remove('sel'));
+    btn.classList.add('sel');
     await loadReportTab(btn.dataset.tab);
   });
 });
@@ -2052,7 +2080,7 @@ function renderRackTreemap(data, catList){
     const { data, error } = await sb.rpc('report_supplier_space_share');
     if(error){ el.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+error.message+'</p>'; return; }
     if(!data || !data.length){ el.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش قواطع متأجرة لموردين لسه.</p>'; return; }
-    el.innerHTML = `<div class="card" style="padding:0; overflow-x:auto;"><table class="rpt-table">
+    el.innerHTML = `<div class="card" style="padding:0;"><div class="rpt-table-wrap"><table class="rpt-table">
       <thead><tr><th>كود</th><th>المورد</th><th>المساحة (وحدة)</th><th>نسبة من الإجمالي</th><th>صافي المشتريات</th><th>مبيعات/وحدة</th></tr></thead>
       <tbody>${data.map(s => `<tr>
         <td>${s.supplier_code ?? '—'}</td><td style="font-weight:600;">${s.supplier_name}</td>
@@ -2060,7 +2088,7 @@ function renderRackTreemap(data, catList){
         <td>${s.total_purchase_net_cost ? Number(s.total_purchase_net_cost).toFixed(3) + ' د.ك' : '—'}</td>
         <td>${s.sales_per_sqm !== null ? Number(s.sales_per_sqm).toFixed(3) + ' د.ك' : '—'}</td>
       </tr>`).join('')}</tbody>
-    </table></div>`;
+    </table></div></div>`;
   }
 
   else if(tab === 'structure'){
@@ -2072,10 +2100,10 @@ function renderRackTreemap(data, catList){
         <div style="font-weight:700; margin-bottom:14px;">توزيع الوحدات حسب النوع</div>
         <div style="height:280px;"><canvas id="chart-structure"></canvas></div>
       </div>
-      <div class="card" style="padding:0; overflow-x:auto;"><table class="rpt-table">
+      <div class="card" style="padding:0;"><div class="rpt-table-wrap"><table class="rpt-table">
       <thead><tr><th>نوع الرف</th><th>نوع الوحدة</th><th>العدد</th></tr></thead>
       <tbody>${data.map(r => `<tr><td>${RACK_TYPE_LABELS[r.rack_type]||r.rack_type}</td><td>${r.unit_type}</td><td style="font-weight:700; color:var(--accent);">${r.cnt}</td></tr>`).join('')}</tbody>
-    </table></div>`;
+    </table></div></div>`;
     renderBarChart('chart-structure', data.map(r => ({ label: (RACK_TYPE_LABELS[r.rack_type]||r.rack_type)+' — '+r.unit_type, value: r.cnt })));
   }
 
@@ -2104,7 +2132,7 @@ function renderRackTreemap(data, catList){
     const { data, error } = await sb.rpc('report_turnover');
     if(error){ el.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+error.message+'</p>'; return; }
     if(!data || !data.length){ el.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش بيانات مبيعات متاحة لسه — هتظهر لما توفّر بيانات المبيعات.</p>'; return; }
-    el.innerHTML = `<div class="card" style="padding:0; overflow-x:auto;"><table class="rpt-table">
+    el.innerHTML = `<div class="card" style="padding:0;"><div class="rpt-table-wrap"><table class="rpt-table">
       <thead><tr><th>كود</th><th>المورد</th><th>المساحة</th><th>قيمة المبيعات</th><th>مبيعات/وحدة (قيمة)</th><th>كمية المبيعات</th><th>مبيعات/وحدة (كمية)</th></tr></thead>
       <tbody>${data.map(s => `<tr>
         <td>${s.supplier_code ?? '—'}</td><td style="font-weight:600;">${s.supplier_name}</td><td>${s.area_parts}</td>
@@ -2113,17 +2141,17 @@ function renderRackTreemap(data, catList){
         <td>${Number(s.total_qty_sold||0).toFixed(0)}</td>
         <td style="font-weight:700;">${s.qty_per_sqm !== null ? Number(s.qty_per_sqm).toFixed(3) : '—'}</td>
       </tr>`).join('')}</tbody>
-    </table></div>`;
+    </table></div></div>`;
   }
 
   else if(tab === 'nospace'){
     const { data, error } = await sb.rpc('report_suppliers_without_space');
     if(error){ el.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+error.message+'</p>'; return; }
     if(!data || !data.length){ el.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش موردين نشطين بلا مساحة — أو مفيش بيانات مشتريات متاحة لسه.</p>'; return; }
-    el.innerHTML = `<div class="card" style="padding:0; overflow-x:auto;"><table class="rpt-table">
+    el.innerHTML = `<div class="card" style="padding:0;"><div class="rpt-table-wrap"><table class="rpt-table">
       <thead><tr><th>كود</th><th>المورد</th><th>صافي المشتريات</th></tr></thead>
       <tbody>${data.map(s => `<tr><td>${s.supplier_code ?? '—'}</td><td style="font-weight:600;">${s.supplier_name}</td><td>${Number(s.total_purchase_net_cost).toFixed(3)} د.ك</td></tr>`).join('')}</tbody>
-    </table></div>`;
+    </table></div></div>`;
   }
 
   else if(tab === 'locationmap'){
@@ -2202,27 +2230,51 @@ function renderRackTreemap(data, catList){
     if(error){ el.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+error.message+'</p>'; return; }
     if(!data || !data.length){ el.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش أي نشاط متسجّل لسه.</p>'; return; }
 
-    const ACTION_LABELS = { create:'إنشاء', edit:'تعديل', delete:'حذف' };
-    const ACTION_COLORS = { create:'var(--success)', edit:'var(--amber)', delete:'var(--danger)' };
+    const ACTION_META = {
+      create: { label:'إنشاء', icon:'ti-plus',  color:'var(--success)', bg:'rgba(34,197,94,.12)' },
+      edit:   { label:'تعديل', icon:'ti-pencil', color:'var(--amber)',  bg:'var(--amber-dim)' },
+      delete: { label:'حذف',  icon:'ti-trash',  color:'var(--danger)', bg:'rgba(239,68,68,.12)' },
+      end:    { label:'إنهاء', icon:'ti-flag',   color:'var(--muted)',  bg:'var(--panel-2)' }
+    };
     const FIELD_LABELS = { status:'الحالة', supplier:'المورد', rack_details:'بيانات الرف' };
 
+    function timeAgo(dateStr){
+      const diff = (Date.now() - new Date(dateStr)) / 1000;
+      if(diff < 60) return 'من ثواني';
+      if(diff < 3600) return `من ${Math.floor(diff/60)} دقيقة`;
+      if(diff < 86400) return `من ${Math.floor(diff/3600)} ساعة`;
+      if(diff < 604800) return `من ${Math.floor(diff/86400)} يوم`;
+      return new Date(dateStr).toLocaleDateString('ar-EG');
+    }
+
     el.innerHTML = `
-      <div class="card" style="padding:0; overflow-x:auto;">
-        <table class="rpt-table">
-          <thead><tr><th>الحدث</th><th>الرف</th><th>القاطع/المستوى</th><th>التفاصيل</th><th>بواسطة</th><th>الوقت</th></tr></thead>
-          <tbody>${data.map(h => `
-            <tr>
-              <td><span style="font-weight:700; color:${ACTION_COLORS[h.action]||'var(--text)'};">${ACTION_LABELS[h.action]||h.action}</span></td>
-              <td style="font-family:var(--font-mono); direction:ltr;">${h.rack_code || '—'}</td>
-              <td style="font-family:var(--font-mono); direction:ltr; font-size:11px;">${h.part_code || '—'}</td>
-              <td style="font-size:12px;">${h.field_changed
-                ? `${FIELD_LABELS[h.field_changed]||h.field_changed}${h.old_value||h.new_value ? `: ${h.old_value||'—'} ← ${h.new_value||'—'}` : ''}`
-                : '—'}</td>
-              <td style="font-weight:600; font-size:12.5px;">${h.changed_by_name}</td>
-              <td style="font-size:11.5px; color:var(--muted);">${new Date(h.changed_at).toLocaleString('ar-EG')}</td>
-            </tr>`).join('')}
-          </tbody>
-        </table>
+      <p style="color:var(--muted); font-size:12px; margin-bottom:10px;">آخر ${data.length} حدث — الأحدث أولًا</p>
+      <div class="card" style="padding:0;">
+        <div class="rpt-table-wrap">
+          <table class="rpt-table">
+            <thead><tr><th>الحدث</th><th>الرف</th><th>القاطع/المستوى</th><th>التفاصيل</th><th>بواسطة</th><th>الوقت</th></tr></thead>
+            <tbody>${data.map(h => {
+              const m = ACTION_META[h.action] || { label:h.action, icon:'ti-point', color:'var(--text)', bg:'var(--panel-2)' };
+              return `
+              <tr>
+                <td class="num"><span style="display:inline-flex; align-items:center; gap:5px; font-weight:700; font-size:11.5px;
+                  color:${m.color}; background:${m.bg}; padding:4px 10px; border-radius:20px;">
+                  <i class="ti ${m.icon}" style="font-size:13px;"></i>${m.label}</span></td>
+                <td class="code" style="font-family:var(--font-mono); direction:ltr; font-weight:600;">${h.rack_code || '—'}</td>
+                <td class="code" style="font-family:var(--font-mono); direction:ltr; font-size:11px; color:var(--muted);">${h.part_code || '—'}</td>
+                <td class="wrap" style="font-size:12px;">${h.field_changed
+                  ? `<span style="color:var(--muted);">${FIELD_LABELS[h.field_changed]||h.field_changed}</span>${h.old_value||h.new_value
+                      ? `<div style="margin-top:2px;"><span style="text-decoration:line-through; opacity:.6;">${h.old_value||'—'}</span>
+                         <i class="ti ti-arrow-left" style="font-size:11px; margin:0 4px; color:var(--muted);"></i>
+                         <b>${h.new_value||'—'}</b></div>` : ''}`
+                  : '<span style="color:var(--muted);">—</span>'}</td>
+                <td class="wrap" style="font-weight:600; font-size:12.5px;">${h.changed_by_name}</td>
+                <td class="num" style="font-size:11.5px; color:var(--muted);" title="${new Date(h.changed_at).toLocaleString('ar-EG')}">${timeAgo(h.changed_at)}</td>
+              </tr>`;
+            }).join('')}
+            </tbody>
+          </table>
+        </div>
       </div>`;
   }
 }
@@ -2991,9 +3043,9 @@ async function showRackDetail(rackCode){
   }
 
   $('rack-back-map').addEventListener('click', () => {
-    document.querySelectorAll('.report-tab-btn').forEach(b => { b.classList.remove('sel'); b.classList.add('ghost'); });
+    document.querySelectorAll('.report-tab-btn').forEach(b => b.classList.remove('sel'));
     document.querySelector('[data-tab="map"]').classList.add('sel');
-    document.querySelector('[data-tab="map"]').classList.remove('ghost');
+    
     loadReportTab('map');
   });
 
@@ -4682,9 +4734,10 @@ async function buildLabelsHTML(items){
   return `<!DOCTYPE html>
 <html lang="ar" dir="rtl"><head><meta charset="UTF-8">
 <title>طباعة الباركود</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; }
-  body { font-family: 'IBM Plex Sans Arabic', Tahoma, sans-serif; margin: 0; padding: 16px; background:#fff; }
+  body { font-family: 'Tajawal', Tahoma, sans-serif; margin: 0; padding: 16px; background:#fff; }
   .toolbar { text-align:center; margin-bottom: 14px; display:flex; justify-content:center; align-items:center; gap:14px; flex-wrap:wrap; }
   .toolbar button { font-family: inherit; font-size: 14px; padding: 8px 20px; border-radius: 8px; border: 1px solid #0d9488; background:#0d9488; color:#fff; cursor:pointer; }
   .mode-switch { display:inline-flex; border:1.5px solid #0d9488; border-radius: 8px; overflow:hidden; }
