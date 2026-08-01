@@ -4747,7 +4747,7 @@ async function buildLabelsHTML(items){
   </div>
   ${bodyHtml}
   <style id="thermal-page-size"></style>
-  <script>
+  <scr` + `ipt>
     function setPrintMode(mode){
       document.body.classList.toggle('thermal-mode', mode === 'thermal');
       document.getElementById('mode-a4').classList.toggle('active', mode === 'a4');
@@ -4758,7 +4758,7 @@ async function buildLabelsHTML(items){
       const pageStyle = document.getElementById('thermal-page-size');
       pageStyle.textContent = mode === 'thermal' ? '@media print { @page { size: 40mm 30mm; margin: 0; } }' : '';
     }
-  </script>
+  </scr` + `ipt>
 </body></html>`;
 }
 
