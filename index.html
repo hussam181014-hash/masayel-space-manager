@@ -32,6 +32,7 @@
     --amber:#d97706; --amber-dim:rgba(217,119,6,.10);
     --danger:#e11d48; --danger-dim:rgba(225,29,72,.10);
     --success:#0d9488; --info:#0284c7;
+    --grid-line:rgba(15,23,42,.028);
     --radius:16px; --radius-card:24px; --radius-input:16px;
     --shadow:0 4px 20px rgba(15,23,42,.06);
     --shadow-glow:0 4px 20px rgba(13,148,136,.20);
@@ -41,9 +42,12 @@
   *:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
   body{
     background:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
       radial-gradient(ellipse 1200px 700px at 85% -10%, rgba(13,148,136,.08), transparent 60%),
       radial-gradient(ellipse 900px 600px at 0% 100%, rgba(124,58,237,.06), transparent 60%),
       var(--bg);
+    background-size: 44px 44px, 44px 44px, auto, auto, auto;
     background-attachment: fixed;
     color:var(--text); font-family:var(--font-ui); font-size:16px;
     min-height:100vh; position:relative;
@@ -55,11 +59,12 @@
   .brand h1{font-size:16px; font-weight:800; color:var(--text); letter-spacing:-.2px;}
   .brand .brand-sub{font-size:10.5px; color:var(--muted); letter-spacing:.2px; font-weight:500;}
   .wordmark{
-    display:inline-flex; align-items:baseline; gap:5px; font-weight:800; letter-spacing:-.5px;
+    display:inline-flex; align-items:center; gap:4px; font-weight:800; letter-spacing:1.2px;
+    font-size:.95em; direction:ltr;
   }
   .wordmark .wm-dot{
-    width:5px; height:5px; border-radius:50%; background:var(--accent); display:inline-block;
-    align-self:center; margin-bottom:-1px;
+    width:4px; height:4px; border-radius:50%; background:var(--accent); display:inline-block;
+    align-self:flex-end; margin-bottom:3px;
   }
 
   .card{
@@ -413,6 +418,28 @@
   .breadcrumb{font-size:22px; font-weight:600; color:var(--text);}
 
   .dash-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:var(--sp-4);}
+  .welcome-panel{
+    background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-card);
+    padding:22px 24px; margin-bottom:var(--sp-5); position:relative; overflow:hidden;
+  }
+  .welcome-panel::after{
+    content:''; position:absolute; inset-inline-end:-30px; top:-30px; width:150px; height:150px;
+    background:radial-gradient(circle, var(--accent-dim), transparent 70%); pointer-events:none;
+  }
+  .welcome-head{display:flex; align-items:center; gap:14px; margin-bottom:14px;}
+  .welcome-avatar{
+    width:46px; height:46px; border-radius:14px; background:var(--accent-dim); color:var(--accent-hover);
+    display:flex; align-items:center; justify-content:center; font-size:19px; font-weight:800; flex-shrink:0;
+  }
+  .welcome-panel h2{font-size:18px; margin:0 0 2px; font-weight:800;}
+  .welcome-panel p{font-size:13px; color:var(--muted); margin:0;}
+  .welcome-perms{display:flex; flex-wrap:wrap; gap:7px; position:relative; z-index:1;}
+  .perm-pill{
+    display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600;
+    padding:6px 12px; border-radius:20px; background:var(--panel-2); border:1px solid var(--border); color:var(--muted);
+  }
+  .perm-pill.on{background:var(--accent-dim); border-color:var(--accent); color:var(--accent-hover);}
+  .perm-pill i{font-size:14px;}
   .dash-card{
     background:var(--panel-2); border:1px solid var(--border); border-radius:var(--radius-card);
     padding:var(--sp-6); cursor:pointer; transition:transform .15s ease-out, box-shadow .15s ease-out;
@@ -587,7 +614,7 @@
     </svg>
     <div class="brand-text">
       <h1 id="auth-org-name">جمعية المسايل التعاونية</h1>
-      <span class="brand-sub" id="auth-powered-by">بواسطة <span class="wordmark">مساحة<span class="wm-dot"></span></span></span>
+      <span class="brand-sub" id="auth-powered-by">بواسطة <span class="wordmark">MASAHA<span class="wm-dot"></span></span></span>
     </div>
   </div>
 
@@ -623,7 +650,7 @@
         <rect x="6" y="15" width="6" height="6" rx="1" fill="none" stroke="var(--accent)" stroke-width="1.1"/>
         <rect x="14" y="15" width="6" height="6" rx="1" fill="var(--amber)"/>
       </svg>
-      <div class="brand-text"><h1 id="sidebar-org-name" style="font-size:13px;">جمعية المسايل التعاونية</h1><span class="brand-sub" id="sidebar-powered-by">بواسطة <span class="wordmark">مساحة<span class="wm-dot"></span></span></span></div>
+      <div class="brand-text"><h1 id="sidebar-org-name" style="font-size:13px;">جمعية المسايل التعاونية</h1><span class="brand-sub" id="sidebar-powered-by">بواسطة <span class="wordmark">MASAHA<span class="wm-dot"></span></span></span></div>
     </div>
     <div id="notif-bell" style="position:relative; margin:0 2px 12px; cursor:pointer; display:flex; align-items:center; gap:8px;
       padding:10px 12px; border-radius:10px; background:var(--panel-2); border:1px solid var(--border);">
@@ -658,6 +685,16 @@
     </div>
 
     <div id="dashboard-home" class="content-section">
+      <div class="welcome-panel">
+        <div class="welcome-head">
+          <div class="welcome-avatar" id="welcome-avatar"></div>
+          <div>
+            <h2 id="welcome-title">أهلًا بك</h2>
+            <p id="welcome-sub">اختار من المهام اللي تحت للبدء.</p>
+          </div>
+        </div>
+        <div class="welcome-perms" id="welcome-perms"></div>
+      </div>
       <div class="dash-grid">
         <div class="dash-card" id="dash-go-rack"><div class="dc-ic"><i class="ti ti-plus"></i></div><h3>إنشاء رف جديد</h3><p>رف، طبلية، أو ثلاجة</p></div>
         <div class="dash-card" id="dash-go-scan"><div class="dc-ic"><i class="ti ti-qrcode"></i></div><h3>مسح الباركود</h3><p>عرض وتعديل حالة القواطع</p></div>
@@ -1304,6 +1341,39 @@ function applyPermissionVisibility(){
   ['nav-go-categories','dash-go-categories'].forEach(id => $(id).style.display = showCategories ? '' : 'none');
   ['nav-go-reports','dash-go-reports'].forEach(id => $(id).style.display = showReports ? '' : 'none');
   $('activitylog-tab-btn').style.display = currentRole === 'owner' ? '' : 'none';
+  renderWelcomePanel();
+}
+
+function renderWelcomePanel(){
+  const isOwner = currentRole === 'owner';
+  const name = currentUserFullName || currentUserEmail || '';
+  const firstName = name.split(' ')[0] || name;
+
+  const hour = new Date().getHours();
+  const greet = hour < 12 ? 'صباح الخير' : hour < 18 ? 'مساء الخير' : 'مساء الخير';
+
+  $('welcome-avatar').textContent = (name.charAt(0) || '؟').toUpperCase();
+  $('welcome-title').textContent = `${greet}، ${firstName}`;
+  $('welcome-sub').textContent = isOwner
+    ? 'إنت المالك — كل صلاحيات النظام متاحة ليك.'
+    : 'دي الصلاحيات المتاحة ليك حاليًا:';
+
+  const perms = [
+    { on: isOwner || currentPerms.can_view_spaces,  icon:'ti-eye',        label:'عرض المساحات والتقارير' },
+    { on: isOwner || currentPerms.can_manage_spaces, icon:'ti-layout-grid', label:'إنشاء وتعديل الأرفف' },
+    { on: isOwner || currentPerms.can_scan,          icon:'ti-qrcode',      label:'مسح وتحديث الباركود' },
+  ];
+  if(isOwner) perms.push({ on:true, icon:'ti-users', label:'إدارة المستخدمين' });
+
+  $('welcome-perms').innerHTML = perms.map(p =>
+    `<span class="perm-pill${p.on ? ' on' : ''}">
+      <i class="ti ${p.on ? p.icon : 'ti-lock'}"></i>${esc(p.label)}${p.on ? '' : ' (غير متاح)'}
+    </span>`).join('');
+
+  const hasAny = perms.some(p => p.on);
+  if(!hasAny){
+    $('welcome-sub').textContent = 'لسه مفيش صلاحيات متفعّلة لحسابك — كلّم مسؤول النظام.';
+  }
 }
 
 async function enterApp(){
@@ -2024,7 +2094,7 @@ async function renderMapLevel(allData, endcapData){
     }
     btn.disabled = false; btn.textContent = originalText;
     if(!allItems.length){ showToast('مفيش أكواد للأرفف المحددة.', true); return; }
-    printCodeLabels(allItems);
+    openPrintPicker(allItems);
   });
 
   if(mapViewMode === 'list'){
@@ -3137,7 +3207,7 @@ async function showRackDetail(rackCode){
 
   $('print-rack-btn').addEventListener('click', () => {
     const items = buildHierarchicalItems(data, rackCode);
-    printCodeLabels(items);
+    openPrintPicker(items);
   });
 
   if(canManage){
@@ -4920,6 +4990,88 @@ async function buildLabelsHTML(items){
 </body></html>`;
 }
 
+/* ============ اختيار انتقائي للأكواد قبل الطباعة ============ */
+const PRINT_KIND_LABELS = { rack:'باركود الرف', column:'باركود القواطع', level:'باركود المستويات' };
+
+function openPrintPicker(items){
+  if(!items || !items.length){ showToast('مفيش أكواد للطباعة.', true); return; }
+
+  const groups = { rack:[], column:[], level:[] };
+  items.forEach((it, i) => { (groups[it.kind] || groups.level).push({ ...it, _i:i }); });
+
+  const sectionHtml = (kind) => {
+    const list = groups[kind];
+    if(!list.length) return '';
+    return `
+      <div style="margin-bottom:14px;">
+        <label style="display:flex; align-items:center; gap:7px; font-weight:700; font-size:13px; cursor:pointer; margin-bottom:7px;">
+          <input type="checkbox" class="pp-group" data-kind="${kind}" checked>
+          ${PRINT_KIND_LABELS[kind]} <span style="color:var(--muted); font-weight:500;">(${list.length})</span>
+        </label>
+        <div style="display:flex; flex-wrap:wrap; gap:5px; padding-inline-start:22px; max-height:160px; overflow-y:auto;">
+          ${list.map(it => `
+            <label style="display:inline-flex; align-items:center; gap:5px; font-size:11px; background:var(--panel-2);
+              border:1px solid var(--border); border-radius:7px; padding:5px 9px; cursor:pointer; font-family:var(--font-mono); direction:ltr;">
+              <input type="checkbox" class="pp-item" data-kind="${kind}" value="${it._i}" checked>${esc(it.code)}
+            </label>`).join('')}
+        </div>
+      </div>`;
+  };
+
+  openModal(`
+    <div style="padding:20px;">
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+        <div style="font-weight:700;">اختار الأكواد المطلوب طباعتها</div>
+        <a id="pp-close" style="color:var(--muted); cursor:pointer; font-size:18px; line-height:1;">✕</a>
+      </div>
+      <p style="font-size:12px; color:var(--muted); margin-bottom:14px;">شيل علامة الصح عن أي كود مش عايز تطبعه — مفيد لو باركود واحد بس اتلف.</p>
+      <div style="display:flex; gap:8px; margin-bottom:14px;">
+        <button class="btn tiny ghost" id="pp-all">تحديد الكل</button>
+        <button class="btn tiny ghost" id="pp-none">إلغاء الكل</button>
+      </div>
+      ${sectionHtml('rack')}${sectionHtml('column')}${sectionHtml('level')}
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:6px; padding-top:14px; border-top:1px solid var(--border);">
+        <span style="font-size:12.5px; color:var(--muted);" id="pp-count"></span>
+        <button class="btn small" id="pp-print" style="width:auto; padding:10px 22px;"><i class="ti ti-printer"></i> طباعة المحدد</button>
+      </div>
+    </div>`);
+
+  const box = $('app-modal-box');
+  const updateCount = () => {
+    const n = box.querySelectorAll('.pp-item:checked').length;
+    $('pp-count').textContent = `${n} كود محدد من ${items.length}`;
+    $('pp-print').disabled = n === 0;
+  };
+
+  box.querySelectorAll('.pp-group').forEach(g => {
+    g.addEventListener('change', () => {
+      box.querySelectorAll(`.pp-item[data-kind="${g.dataset.kind}"]`).forEach(c => c.checked = g.checked);
+      updateCount();
+    });
+  });
+  box.querySelectorAll('.pp-item').forEach(c => c.addEventListener('change', () => {
+    const kind = c.dataset.kind;
+    const all = box.querySelectorAll(`.pp-item[data-kind="${kind}"]`);
+    const checked = box.querySelectorAll(`.pp-item[data-kind="${kind}"]:checked`);
+    const g = box.querySelector(`.pp-group[data-kind="${kind}"]`);
+    if(g) g.checked = all.length === checked.length;
+    updateCount();
+  }));
+  $('pp-all').addEventListener('click', () => {
+    box.querySelectorAll('.pp-item, .pp-group').forEach(c => c.checked = true); updateCount();
+  });
+  $('pp-none').addEventListener('click', () => {
+    box.querySelectorAll('.pp-item, .pp-group').forEach(c => c.checked = false); updateCount();
+  });
+  $('pp-close').addEventListener('click', closeModal);
+  $('pp-print').addEventListener('click', () => {
+    const picked = Array.from(box.querySelectorAll('.pp-item:checked')).map(c => items[+c.value]);
+    closeModal();
+    printCodeLabels(picked);
+  });
+  updateCount();
+}
+
 async function printCodeLabels(items){
   if(!items || !items.length){ showToast('مفيش أكواد للطباعة.', true); return; }
   const win = window.open('', '_blank');
@@ -4940,7 +5092,7 @@ async function printCodeLabels(items){
 
 $('print-all-codes').addEventListener('click', () => {
   const items = buildHierarchicalItems(generatedParts, $('f-code').value);
-  printCodeLabels(items);
+  openPrintPicker(items);
 });
 
 $('print-single-code').addEventListener('click', () => {
