@@ -336,6 +336,15 @@
   .report-tab-btn:hover{color:var(--text);}
   .report-tab-btn.sel{color:var(--accent); border-bottom-color:var(--accent); font-weight:700;}
   .rpt-table-wrap{max-height:65vh; overflow:auto; border-radius:var(--radius-card);}
+  .pagination{display:flex; align-items:center; justify-content:center; gap:14px; margin-top:14px;}
+  .pg-btn{
+    display:inline-flex; align-items:center; gap:5px; padding:8px 16px; border-radius:9px;
+    background:var(--panel); border:1px solid var(--border); color:var(--text);
+    font-family:var(--font-ui); font-size:13px; font-weight:500; cursor:pointer; transition:background .15s;
+  }
+  .pg-btn:hover:not(:disabled){background:var(--panel-2); border-color:var(--border-strong);}
+  .pg-btn:disabled{opacity:.4; cursor:not-allowed;}
+  .pg-info{font-size:12.5px; color:var(--muted); font-weight:500;}
   .rpt-table{width:100%; border-collapse:separate; border-spacing:0; font-size:13px;}
   .rpt-table th{
     position:sticky; top:0; z-index:2;
@@ -445,6 +454,15 @@
 
   .sitemap-outer{padding:0; overflow:hidden; position:relative;}
   .sitemap-canvas{position:relative; width:100%; height:560px; overflow:auto; background:var(--panel);}
+  /* وضع ملء الشاشة: الحاوية والكانفاس ياخدوا كامل الشاشة */
+  #locmap-outer:fullscreen{
+    background:var(--bg); padding:14px; display:flex; flex-direction:column; overflow:auto;
+  }
+  #locmap-outer:fullscreen .sitemap-canvas{flex:1; height:auto; min-height:0;}
+  #locmap-outer:-webkit-full-screen{
+    background:var(--bg); padding:14px; display:flex; flex-direction:column; overflow:auto;
+  }
+  #locmap-outer:-webkit-full-screen .sitemap-canvas{flex:1; height:auto; min-height:0;}
   .sitemap-inner{
     position:relative; transform-origin:top right; transition:transform .18s cubic-bezier(.2,.8,.2,1);
     background-image:radial-gradient(circle, var(--border-strong, var(--border)) 1px, transparent 1.4px);
@@ -1145,6 +1163,17 @@ let selectedPlacement = null;
 
 const $ = (id) => document.getElementById(id);
 
+// تعقيم أي نص جاي من قاعدة البيانات قبل حقنه في HTML (حماية من XSS)
+function esc(v){
+  if(v === null || v === undefined) return '';
+  return String(v)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function showToast(msg, isErr=false){
   const t = $('toast');
   t.textContent = msg;
@@ -1315,10 +1344,10 @@ async function checkExpiringContracts(){
   countEl.textContent = data.length;
   countEl.style.display = 'flex';
   $('notif-panel').innerHTML = data.map(c => `
-    <div style="padding:8px 10px; border-bottom:1px solid var(--border); font-size:12px; cursor:pointer;" class="notif-item" data-rack="${c.rack_code}">
-      <div style="font-weight:700;">${c.supplier_name}</div>
+    <div style="padding:8px 10px; border-bottom:1px solid var(--border); font-size:12px; cursor:pointer;" class="notif-item" data-rack="${esc(c.rack_code)}">
+      <div style="font-weight:700;">${esc(c.supplier_name)}</div>
       <div style="color:var(--muted); margin-top:2px;">
-        <span style="direction:ltr; font-family:var(--font-mono);">${c.rack_code}</span> —
+        <span style="direction:ltr; font-family:var(--font-mono);">${esc(c.rack_code)}</span> —
         العقد بينتهي خلال <b style="color:${c.days_remaining <= 7 ? 'var(--danger)' : 'var(--amber)'};">${c.days_remaining} يوم</b>
       </div>
     </div>`).join('');
@@ -1494,7 +1523,7 @@ async function loadUsersList(){
     if(u.role === 'owner'){
       return `<div class="user-acc-header" style="cursor:default;">
         <div class="ua-avatar" style="background:var(--amber-dim); color:var(--amber);">${(u.full_name||u.email).charAt(0).toUpperCase()}</div>
-        <div class="ua-info"><div class="ua-name">${u.full_name || u.email}</div><div class="ua-sub">${u.email}</div></div>
+        <div class="ua-info"><div class="ua-name">${u.full_name || u.email}</div><div class="ua-sub">${esc(u.email)}</div></div>
         <span class="ua-chip" style="color:var(--amber); border-color:var(--amber);">مالك</span>
       </div>`;
     }
@@ -1506,7 +1535,7 @@ async function loadUsersList(){
         <div class="ua-avatar">${(u.full_name||u.email).charAt(0).toUpperCase()}</div>
         <div class="ua-info">
           <div class="ua-name">${u.full_name || u.email}</div>
-          <div class="ua-sub">${u.email}${u.phone ? ' · ' + u.phone : ''}</div>
+          <div class="ua-sub">${esc(u.email)}${u.phone ? ' · ' + u.phone : ''}</div>
         </div>
         <div class="ua-badges">
           <span class="ua-status-badge ${u.is_approved?'ok':'pending'}">${u.is_approved ? '✓ مفعّل' : 'بانتظار الموافقة'}</span>
@@ -1530,7 +1559,7 @@ async function loadUsersList(){
             <input type="checkbox" class="restrict-branch-toggle" ${branchRestricted?'checked':''}> تقييد الوصول بفروع محددة
           </label>
           <div class="branch-checks" style="display:${branchRestricted?'flex':'none'}; flex-wrap:wrap; gap:8px; margin-top:6px;">
-            ${(allBranches||[]).map(b => `<label style="font-size:12px; display:flex; align-items:center; gap:4px;"><input type="checkbox" class="branch-chk" value="${b.id}" ${(u.allowed_branch_ids||[]).includes(b.id)?'checked':''}> ${b.name}</label>`).join('')}
+            ${(allBranches||[]).map(b => `<label style="font-size:12px; display:flex; align-items:center; gap:4px;"><input type="checkbox" class="branch-chk" value="${b.id}" ${(u.allowed_branch_ids||[]).includes(b.id)?'checked':''}> ${esc(b.name)}</label>`).join('')}
           </div>
         </div>
 
@@ -1650,9 +1679,11 @@ $('categories-back-menu').addEventListener('click', () => goToSection('dashboard
 
 async function loadCategoriesAdmin(){
   $('cat-list').innerHTML = '<p style="color:var(--muted); font-size:13px;">جاري التحميل...</p>';
-  const { data: cats, error } = await sb.from('categories').select('*').order('name');
+  const [{ data: cats, error }, { data: subs }] = await Promise.all([
+    sb.from('categories').select('*').order('name'),
+    sb.from('subcategories').select('*').order('name')
+  ]);
   if(error){ $('cat-list').innerHTML = '<p style="color:var(--danger); font-size:13px;">تعذّر التحميل.</p>'; return; }
-  const { data: subs } = await sb.from('subcategories').select('*').order('name');
 
   if(!cats || !cats.length){ $('cat-list').innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش تصنيفات لسه — ضيف واحد فوق.</p>'; return; }
 
@@ -1660,9 +1691,9 @@ async function loadCategoriesAdmin(){
     const catSubs = (subs || []).filter(s => s.category_id === c.id);
     return `
     <div class="cat-row" data-id="${c.id}">
-      <div class="cat-name"><span>${c.name}</span><span class="del" data-del-cat="${c.id}" style="color:var(--danger); cursor:pointer; font-size:13px;">حذف التصنيف</span></div>
+      <div class="cat-name"><span>${esc(c.name)}</span><span class="del" data-del-cat="${c.id}" style="color:var(--danger); cursor:pointer; font-size:13px;">حذف التصنيف</span></div>
       <div class="cat-subs">
-        ${catSubs.map(s => `<span class="sub-chip">${s.name} <span class="del" data-del-sub="${s.id}">×</span></span>`).join('') || '<span style="color:var(--muted); font-size:12.5px;">مفيش تصنيفات فرعية</span>'}
+        ${catSubs.map(s => `<span class="sub-chip">${esc(s.name)} <span class="del" data-del-sub="${s.id}">×</span></span>`).join('') || '<span style="color:var(--muted); font-size:12.5px;">مفيش تصنيفات فرعية</span>'}
       </div>
       <div class="cat-add-sub">
         <input type="text" placeholder="تصنيف فرعي جديد" class="new-sub-input">
@@ -1966,7 +1997,7 @@ async function renderMapLevel(allData, endcapData){
   data.forEach(u => {
     const lbl = document.createElement('label');
     lbl.style.cssText = 'display:flex; align-items:center; gap:6px; font-size:12px; background:var(--panel-2); border:1px solid var(--border); border-radius:8px; padding:6px 8px; cursor:pointer;';
-    lbl.innerHTML = `<input type="checkbox" class="rack-select-chk" value="${u.rack_code}"><span style="direction:ltr;">${u.rack_code}</span><span style="color:var(--muted); margin-inline-start:auto;">${u.total_parts} وحدة</span>`;
+    lbl.innerHTML = `<input type="checkbox" class="rack-select-chk" value="${esc(u.rack_code)}"><span style="direction:ltr;">${esc(u.rack_code)}</span><span style="color:var(--muted); margin-inline-start:auto;">${u.total_parts} وحدة</span>`;
     selectList.appendChild(lbl);
   });
   function updateSelectedRacksCount(){
@@ -2016,8 +2047,8 @@ function renderRackRankedList(data){
     <div style="display:flex; flex-direction:column; gap:6px;">
       ${sorted.map(u => {
         const c = occColor(Number(u.occ_pct));
-        return `<div class="rank-row" data-code="${u.rack_code}">
-          <span class="rr-code">${u.rack_code}</span>
+        return `<div class="rank-row" data-code="${esc(u.rack_code)}">
+          <span class="rr-code">${esc(u.rack_code)}</span>
           <div class="rr-bar"><div style="width:${u.occ_pct}%; background:${c.fill};"></div></div>
           <span class="rr-pct" style="color:${c.text};">${u.occ_pct}%</span>
           <span class="rr-count">${u.total_parts} وحدة</span>
@@ -2048,11 +2079,11 @@ function renderRackTreemap(data, catList){
     div.style.cssText = `position:absolute; left:${r.x/W*100}%; top:${r.y/H*100}%; width:${r.w/W*100}%; height:${r.h/H*100}%;
       background:${color}22; border:1.5px solid ${color}; box-sizing:border-box; padding:5px; overflow:hidden; cursor:pointer;`;
     if(showText){
-      div.innerHTML = `<div style="font-size:11px; font-weight:700; color:var(--text); direction:ltr;">${u.rack_code}</div>
-        <div style="font-size:9.5px; color:var(--muted); margin-top:2px;">${u.dominant_category}</div>
+      div.innerHTML = `<div style="font-size:11px; font-weight:700; color:var(--text); direction:ltr;">${esc(u.rack_code)}</div>
+        <div style="font-size:9.5px; color:var(--muted); margin-top:2px;">${esc(u.dominant_category)}</div>
         <div style="font-size:9.5px; color:var(--muted);">إشغال ${u.occ_pct}% · ${u.total_parts} وحدة</div>`;
     }
-    div.title = `${u.rack_code} — ${u.dominant_category} — إشغال ${u.occ_pct}%`;
+    div.title = `${esc(u.rack_code)} — ${esc(u.dominant_category)} — إشغال ${u.occ_pct}%`;
     div.addEventListener('click', () => showRackDetail(u.rack_code));
     box.appendChild(div);
   });
@@ -2083,7 +2114,7 @@ function renderRackTreemap(data, catList){
     el.innerHTML = `<div class="card" style="padding:0;"><div class="rpt-table-wrap"><table class="rpt-table">
       <thead><tr><th>كود</th><th>المورد</th><th>المساحة (وحدة)</th><th>نسبة من الإجمالي</th><th>صافي المشتريات</th><th>مبيعات/وحدة</th></tr></thead>
       <tbody>${data.map(s => `<tr>
-        <td>${s.supplier_code ?? '—'}</td><td style="font-weight:600;">${s.supplier_name}</td>
+        <td>${s.supplier_code ?? '—'}</td><td style="font-weight:600;">${esc(s.supplier_name)}</td>
         <td>${s.area_parts}</td><td>${scoreBar(s.share_pct)}</td>
         <td>${s.total_purchase_net_cost ? Number(s.total_purchase_net_cost).toFixed(3) + ' د.ك' : '—'}</td>
         <td>${s.sales_per_sqm !== null ? Number(s.sales_per_sqm).toFixed(3) + ' د.ك' : '—'}</td>
@@ -2102,7 +2133,7 @@ function renderRackTreemap(data, catList){
       </div>
       <div class="card" style="padding:0;"><div class="rpt-table-wrap"><table class="rpt-table">
       <thead><tr><th>نوع الرف</th><th>نوع الوحدة</th><th>العدد</th></tr></thead>
-      <tbody>${data.map(r => `<tr><td>${RACK_TYPE_LABELS[r.rack_type]||r.rack_type}</td><td>${r.unit_type}</td><td style="font-weight:700; color:var(--accent);">${r.cnt}</td></tr>`).join('')}</tbody>
+      <tbody>${data.map(r => `<tr><td>${RACK_TYPE_LABELS[r.rack_type]||r.rack_type}</td><td>${esc(r.unit_type)}</td><td style="font-weight:700; color:var(--accent);">${r.cnt}</td></tr>`).join('')}</tbody>
     </table></div></div>`;
     renderBarChart('chart-structure', data.map(r => ({ label: (RACK_TYPE_LABELS[r.rack_type]||r.rack_type)+' — '+r.unit_type, value: r.cnt })));
   }
@@ -2114,11 +2145,11 @@ function renderRackTreemap(data, catList){
     el.innerHTML = data.map((c, i) => `
       <div class="cat-report-row" data-idx="${i}">
         <div class="head">
-          <div><b>${c.category_name}</b><div style="color:var(--muted); font-size:11.5px; margin-top:2px;">${(c.suppliers||[]).length} مورد</div></div>
+          <div><b>${esc(c.category_name)}</b><div style="color:var(--muted); font-size:11.5px; margin-top:2px;">${(c.suppliers||[]).length} مورد</div></div>
           <div style="text-align:left;"><div style="color:var(--accent); font-weight:700;">${c.total_area} وحدة</div><div style="font-size:11px; color:var(--muted);">${c.share_pct_of_total}% من إجمالي المساحة</div></div>
         </div>
         <div class="cat-report-detail" id="cat-detail-${i}">
-          ${(c.suppliers||[]).map(s => `<div class="review-row"><span class="k">${s.supplier_name}</span><span class="v">${scoreBar(s.share_pct)} <span style="color:var(--muted); font-size:11px;">(${s.area} وحدة)</span></span></div>`).join('') || '<p style="color:var(--muted); font-size:12px;">لا يوجد.</p>'}
+          ${(c.suppliers||[]).map(s => `<div class="review-row"><span class="k">${esc(s.supplier_name)}</span><span class="v">${scoreBar(s.share_pct)} <span style="color:var(--muted); font-size:11px;">(${s.area} وحدة)</span></span></div>`).join('') || '<p style="color:var(--muted); font-size:12px;">لا يوجد.</p>'}
         </div>
       </div>`).join('');
     document.querySelectorAll('.cat-report-row').forEach(row => {
@@ -2135,7 +2166,7 @@ function renderRackTreemap(data, catList){
     el.innerHTML = `<div class="card" style="padding:0;"><div class="rpt-table-wrap"><table class="rpt-table">
       <thead><tr><th>كود</th><th>المورد</th><th>المساحة</th><th>قيمة المبيعات</th><th>مبيعات/وحدة (قيمة)</th><th>كمية المبيعات</th><th>مبيعات/وحدة (كمية)</th></tr></thead>
       <tbody>${data.map(s => `<tr>
-        <td>${s.supplier_code ?? '—'}</td><td style="font-weight:600;">${s.supplier_name}</td><td>${s.area_parts}</td>
+        <td>${s.supplier_code ?? '—'}</td><td style="font-weight:600;">${esc(s.supplier_name)}</td><td>${s.area_parts}</td>
         <td>${Number(s.total_sales_revenue||0).toFixed(3)} د.ك</td>
         <td style="font-weight:700; color:var(--accent);">${s.sales_per_sqm !== null ? Number(s.sales_per_sqm).toFixed(3) + ' د.ك' : '—'}</td>
         <td>${Number(s.total_qty_sold||0).toFixed(0)}</td>
@@ -2150,7 +2181,7 @@ function renderRackTreemap(data, catList){
     if(!data || !data.length){ el.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش موردين نشطين بلا مساحة — أو مفيش بيانات مشتريات متاحة لسه.</p>'; return; }
     el.innerHTML = `<div class="card" style="padding:0;"><div class="rpt-table-wrap"><table class="rpt-table">
       <thead><tr><th>كود</th><th>المورد</th><th>صافي المشتريات</th></tr></thead>
-      <tbody>${data.map(s => `<tr><td>${s.supplier_code ?? '—'}</td><td style="font-weight:600;">${s.supplier_name}</td><td>${Number(s.total_purchase_net_cost).toFixed(3)} د.ك</td></tr>`).join('')}</tbody>
+      <tbody>${data.map(s => `<tr><td>${s.supplier_code ?? '—'}</td><td style="font-weight:600;">${esc(s.supplier_name)}</td><td>${Number(s.total_purchase_net_cost).toFixed(3)} د.ك</td></tr>`).join('')}</tbody>
     </table></div></div>`;
   }
 
@@ -2166,7 +2197,7 @@ function renderRackTreemap(data, catList){
       <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; align-items:flex-end;">
         <div class="field" style="max-width:220px; margin-bottom:0;">
           <label>اختار الفرع</label>
-          <select id="locmap-branch-select">${branches.map(b => `<option value="${b.id}">${b.name}</option>`).join('')}</select>
+          <select id="locmap-branch-select">${branches.map(b => `<option value="${b.id}">${esc(b.name)}</option>`).join('')}</select>
         </div>
         <div class="field" style="max-width:220px; margin-bottom:0;">
           <label>القطاع / الطابق</label>
@@ -2205,7 +2236,7 @@ function renderRackTreemap(data, catList){
         if(error || !data || !data.length){ $('supplier-search-suggestions').style.display = 'none'; return; }
         $('supplier-search-suggestions').innerHTML = data.map(s => `
           <div class="sugg-item" data-id="${s.supplier_id}">
-            <span>${s.supplier_name} <span style="color:var(--muted); font-size:11px;">(${s.supplier_code})</span></span>
+            <span>${esc(s.supplier_name)} <span style="color:var(--muted); font-size:11px;">(${s.supplier_code})</span></span>
             <span class="sg-badge">${s.area_units} وحدة</span>
           </div>`).join('');
         $('supplier-search-suggestions').style.display = 'block';
@@ -2218,64 +2249,106 @@ function renderRackTreemap(data, catList){
         });
       }, 250);
     });
-    document.addEventListener('click', (e) => {
-      if(!e.target.closest('#supplier-search-input') && !e.target.closest('#supplier-search-suggestions')){
-        $('supplier-search-suggestions').style.display = 'none';
-      }
-    });
+    if(!window.__supplierSuggestListenerBound){
+      window.__supplierSuggestListenerBound = true;
+      document.addEventListener('click', (e) => {
+        const sug = $('supplier-search-suggestions');
+        if(!sug) return;
+        if(!e.target.closest('#supplier-search-input') && !e.target.closest('#supplier-search-suggestions')){
+          sug.style.display = 'none';
+        }
+      });
+    }
   }
 
   else if(tab === 'activitylog'){
-    const { data, error } = await sb.rpc('get_activity_log', { p_limit: 150 });
-    if(error){ el.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+error.message+'</p>'; return; }
-    if(!data || !data.length){ el.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش أي نشاط متسجّل لسه.</p>'; return; }
+    activityLogPage = 1;
+    await renderActivityLog();
+  }
+}
 
-    const ACTION_META = {
-      create: { label:'إنشاء', icon:'ti-plus',  color:'var(--success)', bg:'rgba(34,197,94,.12)' },
-      edit:   { label:'تعديل', icon:'ti-pencil', color:'var(--amber)',  bg:'var(--amber-dim)' },
-      delete: { label:'حذف',  icon:'ti-trash',  color:'var(--danger)', bg:'rgba(239,68,68,.12)' },
-      end:    { label:'إنهاء', icon:'ti-flag',   color:'var(--muted)',  bg:'var(--panel-2)' }
-    };
-    const FIELD_LABELS = { status:'الحالة', supplier:'المورد', rack_details:'بيانات الرف' };
+let activityLogPage = 1;
+const ACTIVITY_PAGE_SIZE = 25;
 
-    function timeAgo(dateStr){
-      const diff = (Date.now() - new Date(dateStr)) / 1000;
-      if(diff < 60) return 'من ثواني';
-      if(diff < 3600) return `من ${Math.floor(diff/60)} دقيقة`;
-      if(diff < 86400) return `من ${Math.floor(diff/3600)} ساعة`;
-      if(diff < 604800) return `من ${Math.floor(diff/86400)} يوم`;
-      return new Date(dateStr).toLocaleDateString('ar-EG');
-    }
+async function renderActivityLog(){
+  const el = $('report-content');
+  el.innerHTML = '<p style="color:var(--muted); font-size:13px;">جاري التحميل...</p>';
+  const { data, error } = await sb.rpc('get_activity_log', { p_page: activityLogPage, p_page_size: ACTIVITY_PAGE_SIZE });
+  if(error){ el.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+error.message+'</p>'; return; }
+  if(!data || !data.length){
+    el.innerHTML = activityLogPage > 1
+      ? '<p style="color:var(--muted); font-size:13px;">مفيش نتايج في الصفحة دي.</p>'
+      : '<p style="color:var(--muted); font-size:13px;">مفيش أي نشاط متسجّل لسه.</p>';
+    return;
+  }
 
-    el.innerHTML = `
-      <p style="color:var(--muted); font-size:12px; margin-bottom:10px;">آخر ${data.length} حدث — الأحدث أولًا</p>
-      <div class="card" style="padding:0;">
-        <div class="rpt-table-wrap">
-          <table class="rpt-table">
-            <thead><tr><th>الحدث</th><th>الرف</th><th>القاطع/المستوى</th><th>التفاصيل</th><th>بواسطة</th><th>الوقت</th></tr></thead>
-            <tbody>${data.map(h => {
-              const m = ACTION_META[h.action] || { label:h.action, icon:'ti-point', color:'var(--text)', bg:'var(--panel-2)' };
-              return `
-              <tr>
-                <td class="num"><span style="display:inline-flex; align-items:center; gap:5px; font-weight:700; font-size:11.5px;
-                  color:${m.color}; background:${m.bg}; padding:4px 10px; border-radius:20px;">
-                  <i class="ti ${m.icon}" style="font-size:13px;"></i>${m.label}</span></td>
-                <td class="code" style="font-family:var(--font-mono); direction:ltr; font-weight:600;">${h.rack_code || '—'}</td>
-                <td class="code" style="font-family:var(--font-mono); direction:ltr; font-size:11px; color:var(--muted);">${h.part_code || '—'}</td>
-                <td class="wrap" style="font-size:12px;">${h.field_changed
-                  ? `<span style="color:var(--muted);">${FIELD_LABELS[h.field_changed]||h.field_changed}</span>${h.old_value||h.new_value
-                      ? `<div style="margin-top:2px;"><span style="text-decoration:line-through; opacity:.6;">${h.old_value||'—'}</span>
-                         <i class="ti ti-arrow-left" style="font-size:11px; margin:0 4px; color:var(--muted);"></i>
-                         <b>${h.new_value||'—'}</b></div>` : ''}`
-                  : '<span style="color:var(--muted);">—</span>'}</td>
-                <td class="wrap" style="font-weight:600; font-size:12.5px;">${h.changed_by_name}</td>
-                <td class="num" style="font-size:11.5px; color:var(--muted);" title="${new Date(h.changed_at).toLocaleString('ar-EG')}">${timeAgo(h.changed_at)}</td>
-              </tr>`;
-            }).join('')}
-            </tbody>
-          </table>
-        </div>
-      </div>`;
+  const total = Number(data[0].total_count) || data.length;
+  const totalPages = Math.max(1, Math.ceil(total / ACTIVITY_PAGE_SIZE));
+  const from = (activityLogPage - 1) * ACTIVITY_PAGE_SIZE + 1;
+  const to = Math.min(activityLogPage * ACTIVITY_PAGE_SIZE, total);
+
+  const ACTION_META = {
+    create: { label:'إنشاء', icon:'ti-plus',  color:'var(--success)', bg:'rgba(34,197,94,.12)' },
+    edit:   { label:'تعديل', icon:'ti-pencil', color:'var(--amber)',  bg:'var(--amber-dim)' },
+    delete: { label:'حذف',  icon:'ti-trash',  color:'var(--danger)', bg:'rgba(239,68,68,.12)' },
+    end:    { label:'إنهاء', icon:'ti-flag',   color:'var(--muted)',  bg:'var(--panel-2)' }
+  };
+  const FIELD_LABELS = { status:'الحالة', supplier:'المورد', rack_details:'بيانات الرف' };
+
+  function timeAgo(dateStr){
+    const diff = (Date.now() - new Date(dateStr)) / 1000;
+    if(diff < 60) return 'من ثواني';
+    if(diff < 3600) return `من ${Math.floor(diff/60)} دقيقة`;
+    if(diff < 86400) return `من ${Math.floor(diff/3600)} ساعة`;
+    if(diff < 604800) return `من ${Math.floor(diff/86400)} يوم`;
+    return new Date(dateStr).toLocaleDateString('ar-EG');
+  }
+
+  el.innerHTML = `
+    <p style="color:var(--muted); font-size:12px; margin-bottom:10px;">بيعرض ${from}–${to} من ${total} حدث — الأحدث أولًا</p>
+    <div class="card" style="padding:0;">
+      <table class="rpt-table">
+        <thead><tr><th>الحدث</th><th>الرف</th><th>القاطع/المستوى</th><th>التفاصيل</th><th>بواسطة</th><th>الوقت</th></tr></thead>
+        <tbody>${data.map(h => {
+          const m = ACTION_META[h.action] || { label:h.action, icon:'ti-point', color:'var(--text)', bg:'var(--panel-2)' };
+          return `
+          <tr>
+            <td class="num"><span style="display:inline-flex; align-items:center; gap:5px; font-weight:700; font-size:11.5px;
+              color:${m.color}; background:${m.bg}; padding:4px 10px; border-radius:20px;">
+              <i class="ti ${m.icon}" style="font-size:13px;"></i>${m.label}</span></td>
+            <td class="code" style="font-family:var(--font-mono); direction:ltr; font-weight:600;">${esc(h.rack_code || '—')}</td>
+            <td class="code" style="font-family:var(--font-mono); direction:ltr; font-size:11px; color:var(--muted);">${esc(h.part_code || '—')}</td>
+            <td class="wrap" style="font-size:12px;">${h.field_changed
+              ? `<span style="color:var(--muted);">${FIELD_LABELS[h.field_changed]||h.field_changed}</span>${h.old_value||h.new_value
+                  ? `<div style="margin-top:2px;"><span style="text-decoration:line-through; opacity:.6;">${esc(h.old_value || '—')}</span>
+                     <i class="ti ti-arrow-left" style="font-size:11px; margin:0 4px; color:var(--muted);"></i>
+                     <b>${esc(h.new_value || '—')}</b></div>` : ''}`
+              : '<span style="color:var(--muted);">—</span>'}</td>
+            <td class="wrap" style="font-weight:600; font-size:12.5px;">${esc(h.changed_by_name)}</td>
+            <td class="num" style="font-size:11.5px; color:var(--muted);" title="${new Date(h.changed_at).toLocaleString('ar-EG')}">${timeAgo(h.changed_at)}</td>
+          </tr>`;
+        }).join('')}
+        </tbody>
+      </table>
+    </div>
+    ${totalPages > 1 ? `
+    <div class="pagination">
+      <button class="pg-btn" id="pg-prev" ${activityLogPage === 1 ? 'disabled' : ''}>
+        <i class="ti ti-chevron-right"></i> السابق
+      </button>
+      <span class="pg-info">صفحة ${activityLogPage} من ${totalPages}</span>
+      <button class="pg-btn" id="pg-next" ${activityLogPage >= totalPages ? 'disabled' : ''}>
+        التالي <i class="ti ti-chevron-left"></i>
+      </button>
+    </div>` : ''}`;
+
+  if(totalPages > 1){
+    $('pg-prev').addEventListener('click', async () => {
+      if(activityLogPage > 1){ activityLogPage--; await renderActivityLog(); }
+    });
+    $('pg-next').addEventListener('click', async () => {
+      if(activityLogPage < totalPages){ activityLogPage++; await renderActivityLog(); }
+    });
   }
 }
 
@@ -2289,6 +2362,18 @@ let locmapSupplierFilter = null;
 let locmapMinimapVisible = true;
 let locmapZoom = 1;
 const LOCMAP_GRID = 24;
+
+// سجل مشترك لمعالجات السحب/التحجيم — بيتفضّى مع كل إعادة رسم للخريطة
+// (بدل ما نضيف مستمعين جداد على document لكل رف في كل مرة = تسريب ذاكرة)
+let locmapDragHandlers = [];
+(function initLocmapSharedListeners(){
+  const fireMove = (e) => { for(const h of locmapDragHandlers) h.move(e); };
+  const fireUp   = (e) => { for(const h of locmapDragHandlers) h.up(e); };
+  document.addEventListener('mousemove', fireMove);
+  document.addEventListener('touchmove', fireMove, { passive:false });
+  document.addEventListener('mouseup', fireUp);
+  document.addEventListener('touchend', fireUp);
+})();
 const LOCMAP_CANVAS_W = 1100, LOCMAP_CANVAS_H = 620;
 
 async function loadLocationMap(branchId){
@@ -2349,6 +2434,9 @@ function renderLocationMap(){
   const canEdit = currentRole === 'owner' || currentPerms.can_manage_spaces;
   const BOX_W = 88, BOX_H = 58;
 
+  // تفضية معالجات السحب القديمة قبل إعادة البناء (منع تراكم المستمعين)
+  locmapDragHandlers = [];
+
   const selectedFloor = $('locmap-floor-select') ? $('locmap-floor-select').value : '';
   const data = selectedFloor ? locmapAllData.filter(r => r.floor_id === selectedFloor) : locmapAllData;
 
@@ -2401,7 +2489,7 @@ function renderLocationMap(){
       <div class="sitemap-lens-banner" id="locmap-lens-banner">
         <div class="ssc-ic" style="background:var(--accent-dim); color:var(--accent); width:30px; height:30px; border-radius:9px; flex-shrink:0;"><i class="ti ti-building-store"></i></div>
         <div style="flex:1; min-width:160px;">
-          <b>${locmapSupplierFilter.name}</b> <span style="color:var(--muted); font-size:11.5px;">(${locmapSupplierFilter.code})</span>
+          <b>${esc(locmapSupplierFilter.name)}</b> <span style="color:var(--muted); font-size:11.5px;">(${locmapSupplierFilter.code})</span>
           <div style="font-size:11.5px; color:var(--muted); margin-top:2px;">
             ${supplierRackCodesInBranch.size ? `${matchedInViewCount} رف ظاهر حاليًا${hiddenInOtherFloor > 0 ? ` · ${hiddenInOtherFloor} في قطاع تاني` : ''}` : 'مفيش أرفف لهذا المورد في الفرع الحالي'}
           </div>
@@ -2488,7 +2576,7 @@ function renderLocationMap(){
       cursor:${canEdit ? 'grab' : 'pointer'};`;
     box.innerHTML = `
       ${showIcon ? `<div class="sb-ic" style="background:${typeColor}22; color:${typeColor};"><i class="ti ${RACK_TYPE_ICON[r.rack_type]||'ti-layout-grid'}"></i></div>` : ''}
-      <span class="sb-code">${r.rack_code}</span>
+      <span class="sb-code">${esc(r.rack_code)}</span>
       <div class="sb-bar"><i style="width:${r.occ_pct}%; background:${color};"></i></div>
       <span class="sb-pct" style="color:${color};">${r.occ_pct}%</span>`;
     box.addEventListener('dblclick', () => showRackDetail(r.rack_code));
@@ -2570,10 +2658,7 @@ function renderLocationMap(){
       };
       box.addEventListener('mousedown', onDown);
       box.addEventListener('touchstart', onDown, { passive:false });
-      document.addEventListener('mousemove', onMove);
-      document.addEventListener('touchmove', onMove, { passive:false });
-      document.addEventListener('mouseup', onUp);
-      document.addEventListener('touchend', onUp);
+      locmapDragHandlers.push({ move:onMove, up:onUp });
 
       const handle = document.createElement('div');
       handle.className = 'sitemap-resize-handle';
@@ -2614,10 +2699,7 @@ function renderLocationMap(){
       };
       handle.addEventListener('mousedown', onResizeDown);
       handle.addEventListener('touchstart', onResizeDown, { passive:false });
-      document.addEventListener('mousemove', onResizeMove);
-      document.addEventListener('touchmove', onResizeMove, { passive:false });
-      document.addEventListener('mouseup', onResizeUp);
-      document.addEventListener('touchend', onResizeUp);
+      locmapDragHandlers.push({ move:onResizeMove, up:onResizeUp });
       box.appendChild(handle);
     } else {
       box.addEventListener('click', () => showRackDetail(r.rack_code));
@@ -2657,8 +2739,20 @@ function renderLocationMap(){
   $('locmap-fullscreen').addEventListener('click', () => {
     const outer = $('locmap-outer');
     if(document.fullscreenElement){ document.exitFullscreen(); }
-    else { outer.requestFullscreen ? outer.requestFullscreen() : showToast('ملء الشاشة مش مدعوم في المتصفح ده.', true); }
+    else if(outer.requestFullscreen){ outer.requestFullscreen(); }
+    else if(outer.webkitRequestFullscreen){ outer.webkitRequestFullscreen(); }
+    else { showToast('ملء الشاشة مش مدعوم في المتصفح ده.', true); }
   });
+  if(!window.__fsListenerBound){
+    window.__fsListenerBound = true;
+    document.addEventListener('fullscreenchange', () => {
+      const btn = $('locmap-fullscreen');
+      if(!btn) return;
+      const isFs = !!document.fullscreenElement;
+      btn.innerHTML = `<i class="ti ti-arrows-${isFs ? 'minimize' : 'maximize'}"></i>`;
+      btn.title = isFs ? 'خروج من ملء الشاشة' : 'ملء الشاشة';
+    });
+  }
   $('locmap-minimap-reopen').addEventListener('click', () => {
     locmapMinimapVisible = true;
     $('locmap-minimap').classList.remove('hidden');
@@ -2666,7 +2760,13 @@ function renderLocationMap(){
   });
   const exportBtn = $('locmap-export-btn'), exportMenu = $('locmap-export-menu');
   exportBtn.addEventListener('click', (e) => { e.stopPropagation(); exportMenu.classList.toggle('show'); });
-  document.addEventListener('click', () => exportMenu.classList.remove('show'));
+  if(!window.__locmapExportListenerBound){
+    window.__locmapExportListenerBound = true;
+    document.addEventListener('click', () => {
+      const m = $('locmap-export-menu');
+      if(m) m.classList.remove('show');
+    });
+  }
   $('locmap-export-png').addEventListener('click', () => { exportMenu.classList.remove('show'); locmapExportMap('png'); });
   $('locmap-export-pdf').addEventListener('click', () => { exportMenu.classList.remove('show'); locmapExportMap('pdf'); });
 
@@ -2740,8 +2840,8 @@ function locmapShowTooltip(r){
   const tip = $('locmap-tooltip'); if(!tip) return;
   const color = r.occ_pct >= 70 ? 'var(--success)' : r.occ_pct >= 30 ? 'var(--amber)' : 'var(--danger)';
   const typeColor = RACK_TYPE_ACCENT[r.rack_type] || '#64748b';
-  tip.innerHTML = `<b style="direction:ltr; display:block; margin-bottom:4px; font-size:12.5px;">${r.rack_code}</b>
-    <span style="color:${typeColor};">${RACK_TYPE_LABELS[r.rack_type]||r.rack_type}</span> · ${r.floor_name || 'بدون قطاع'}<br>
+  tip.innerHTML = `<b style="direction:ltr; display:block; margin-bottom:4px; font-size:12.5px;">${esc(r.rack_code)}</b>
+    <span style="color:${typeColor};">${RACK_TYPE_LABELS[r.rack_type]||r.rack_type}</span> · ${esc(r.floor_name || 'بدون قطاع')}<br>
     الإشغال: <b style="color:${color};">${r.occ_pct}%</b>`;
   tip.classList.add('show');
 }
@@ -2814,8 +2914,13 @@ function locmapRenderMinimap(positioned){
     canvasEl.scrollTop = relY * locmapZoom - canvasEl.clientHeight / 2;
   };
   svgEl.addEventListener('mousedown', (e) => { dragging = true; jumpTo(e.clientX, e.clientY); });
-  document.addEventListener('mousemove', (e) => { if(dragging) jumpTo(e.clientX, e.clientY); });
-  document.addEventListener('mouseup', () => { dragging = false; });
+  if(!window.__minimapDragBound){
+    window.__minimapDragBound = true;
+    document.addEventListener('mousemove', (e) => { if(window.__minimapJumpTo && window.__minimapDragging) window.__minimapJumpTo(e.clientX, e.clientY); });
+    document.addEventListener('mouseup', () => { window.__minimapDragging = false; });
+  }
+  window.__minimapJumpTo = jumpTo;
+  svgEl.addEventListener('mousedown', () => { window.__minimapDragging = true; });
 
   locmapUpdateMinimapViewport();
 }
@@ -2871,14 +2976,14 @@ function locmapRenderSuggestions(rackMatches, supplierMatches, loadingSuppliers)
   let html = '';
   if(rackMatches.length){
     html += `<div class="sg-group-label">أرفف</div>` + rackMatches.map(r =>
-      `<div class="sg-item" data-kind="rack" data-code="${r.rack_code}"><span>${r.rack_code}</span><span style="color:var(--muted); font-size:11px;">${RACK_TYPE_LABELS[r.rack_type]||r.rack_type} · ${r.occ_pct}%</span></div>`
+      `<div class="sg-item" data-kind="rack" data-code="${esc(r.rack_code)}"><span>${esc(r.rack_code)}</span><span style="color:var(--muted); font-size:11px;">${RACK_TYPE_LABELS[r.rack_type]||r.rack_type} · ${r.occ_pct}%</span></div>`
     ).join('');
   }
   if(loadingSuppliers){
     html += `<div class="sg-group-label">موردين</div><div class="sg-item" style="cursor:default; color:var(--muted);">جاري البحث...</div>`;
   } else if(supplierMatches.length){
     html += `<div class="sg-group-label">موردين</div>` + supplierMatches.map(s =>
-      `<div class="sg-item" data-kind="supplier" data-id="${s.supplier_id}"><span><i class="ti ti-building-store" style="font-size:12px; color:var(--accent); margin-inline-end:4px;"></i>${s.supplier_name} <span style="color:var(--muted); font-size:10.5px;">(${s.supplier_code})</span></span><span style="color:var(--muted); font-size:11px;">${s.area_units} وحدة</span></div>`
+      `<div class="sg-item" data-kind="supplier" data-id="${s.supplier_id}"><span><i class="ti ti-building-store" style="font-size:12px; color:var(--accent); margin-inline-end:4px;"></i>${esc(s.supplier_name)} <span style="color:var(--muted); font-size:10.5px;">(${s.supplier_code})</span></span><span style="color:var(--muted); font-size:11px;">${s.area_units} وحدة</span></div>`
     ).join('');
   }
   sugg.innerHTML = html;
@@ -2952,7 +3057,7 @@ async function loadSupplierProfile(supplierId){
     <div class="card" style="margin-bottom:14px;">
       <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px;">
         <div>
-          <div style="font-weight:800; font-size:16px;">${s.supplier_name}</div>
+          <div style="font-weight:800; font-size:16px;">${esc(s.supplier_name)}</div>
           <div style="color:var(--muted); font-size:12.5px; margin-top:4px;">كود ${s.supplier_code}${s.supplier_category ? ' — ' + s.supplier_category : ''}</div>
           ${s.contract_start ? `<div style="color:var(--muted); font-size:11.5px; margin-top:4px;">العقد: ${s.contract_start} → ${s.contract_end||'—'}</div>` : ''}
         </div>
@@ -2968,13 +3073,13 @@ async function loadSupplierProfile(supplierId){
       <div class="card" style="margin-bottom:10px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
           <div>
-            <span style="font-family:var(--font-mono); font-weight:700; direction:ltr;">${loc.rack_code}</span>
+            <span style="font-family:var(--font-mono); font-weight:700; direction:ltr;">${esc(loc.rack_code)}</span>
             <span style="color:var(--muted); font-size:12px; margin-inline-start:8px;">${RACK_TYPE_LABELS[loc.rack_type]||loc.rack_type}</span>
           </div>
-          <div style="font-size:12px; color:var(--muted);">${loc.branch_name||'—'} / ${loc.floor_name||'—'}</div>
+          <div style="font-size:12px; color:var(--muted);">${esc(loc.branch_name || '—')} / ${esc(loc.floor_name || '—')}</div>
         </div>
         <div style="display:flex; flex-wrap:wrap; gap:6px;">
-          ${loc.units.map(u => `<span class="group-chip${u.tier==='premium'?' premium':''}" style="cursor:pointer;" data-code="${u.part_code}"><span class="gc-code">${u.part_code}</span><span class="gc-sub">${u.unit_type}</span></span>`).join('')}
+          ${loc.units.map(u => `<span class="group-chip${u.tier==='premium'?' premium':''}" style="cursor:pointer;" data-code="${esc(u.part_code)}"><span class="gc-code">${esc(u.part_code)}</span><span class="gc-sub">${esc(u.unit_type)}</span></span>`).join('')}
         </div>
       </div>`).join('') : '<p style="color:var(--muted); font-size:13px;">مفيش مساحات مسجّلة لهذا المورد.</p>'}
   `;
@@ -3069,28 +3174,28 @@ async function openRackEditModal(rackCode){
       </div>
       <div class="grid2">
         <div class="field"><label>الفرع</label>
-          <select id="rem-branch">${(branches||[]).map(b => `<option value="${b.id}" ${b.id===rackRow.branch_id?'selected':''}>${b.name}</option>`).join('')}</select>
+          <select id="rem-branch">${(branches||[]).map(b => `<option value="${b.id}" ${b.id===rackRow.branch_id?'selected':''}>${esc(b.name)}</option>`).join('')}</select>
         </div>
         <div class="field"><label>الطابق</label><select id="rem-floor"><option value="">—</option></select></div>
         <div class="field"><label>التصنيف الرئيسي</label>
-          <select id="rem-category"><option value="">بدون تصنيف</option>${(categories||[]).map(c => `<option value="${c.id}" ${c.id===rackRow.category_id?'selected':''}>${c.name}</option>`).join('')}</select>
+          <select id="rem-category"><option value="">بدون تصنيف</option>${(categories||[]).map(c => `<option value="${c.id}" ${c.id===rackRow.category_id?'selected':''}>${esc(c.name)}</option>`).join('')}</select>
         </div>
         <div class="field"><label>التصنيف الفرعي</label><select id="rem-subcategory"><option value="">بدون تصنيف فرعي</option></select></div>
-        <div class="field"><label>القطاع</label><input type="text" id="rem-section" value="${rackRow.section||''}"></div>
+        <div class="field"><label>القطاع</label><input type="text" id="rem-section" value="${esc(rackRow.section || '')}"></div>
       </div>
-      <div class="field"><label>ملاحظات</label><textarea id="rem-notes" rows="3">${rackRow.notes||''}</textarea></div>
+      <div class="field"><label>ملاحظات</label><textarea id="rem-notes" rows="3">${esc(rackRow.notes || '')}</textarea></div>
       <button class="btn small" id="rem-save">حفظ التعديلات</button>
       <div class="err" id="rem-err"></div>
     </div>`);
 
   async function loadFloorsForModal(branchId, selectedFloor){
     const { data: floors } = await sb.from('branch_floors').select('*').eq('branch_id', branchId).order('name');
-    $('rem-floor').innerHTML = '<option value="">—</option>' + (floors||[]).map(f => `<option value="${f.id}" ${f.id===selectedFloor?'selected':''}>${f.name}</option>`).join('');
+    $('rem-floor').innerHTML = '<option value="">—</option>' + (floors||[]).map(f => `<option value="${f.id}" ${f.id===selectedFloor?'selected':''}>${esc(f.name)}</option>`).join('');
   }
   async function loadSubcatsForModal(categoryId, selectedSub){
     if(!categoryId){ $('rem-subcategory').innerHTML = '<option value="">بدون تصنيف فرعي</option>'; return; }
     const { data: subs } = await sb.from('subcategories').select('*').eq('category_id', categoryId).order('name');
-    $('rem-subcategory').innerHTML = '<option value="">بدون تصنيف فرعي</option>' + (subs||[]).map(s => `<option value="${s.id}" ${s.id===selectedSub?'selected':''}>${s.name}</option>`).join('');
+    $('rem-subcategory').innerHTML = '<option value="">بدون تصنيف فرعي</option>' + (subs||[]).map(s => `<option value="${s.id}" ${s.id===selectedSub?'selected':''}>${esc(s.name)}</option>`).join('');
   }
   await loadFloorsForModal(rackRow.branch_id, rackRow.floor_id);
   await loadSubcatsForModal(rackRow.category_id, rackRow.subcategory_id);
@@ -3471,7 +3576,7 @@ function showLevelPanel(parts, title, rackCode){
     chip.className = 'code-chip' + (p.tier === 'premium' ? ' premium' : '');
     chip.style.cursor = 'pointer'; chip.style.textAlign = 'center'; chip.style.minWidth = '90px';
     const label = isFreezerParts ? p.unit_type : ('L0' + p.level);
-    chip.innerHTML = `<span class="c" style="direction:ltr;">${label}</span><span class="t">${p.supplier_name || 'فارغ'}</span>
+    chip.innerHTML = `<span class="c" style="direction:ltr;">${label}</span><span class="t">${esc(p.supplier_name || 'فارغ')}</span>
       <span style="display:block; width:7px; height:7px; border-radius:50%; background:${color}; margin:4px auto 0;"></span>`;
     chip.addEventListener('click', () => openPartEditor(p, rackCode));
     wrap.appendChild(chip);
@@ -3483,9 +3588,9 @@ function openPartEditor(p, rackCode){
     <div style="padding:20px;">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
         <div>
-          <div style="font-weight:700; direction:ltr; text-align:right; font-family:var(--font-mono);">${p.part_code}</div>
-          <div style="color:var(--muted); font-size:12px; margin-top:3px;">${p.unit_type}${p.category_name ? ' — ' + p.category_name : ''}</div>
-          ${p.supplier_name ? `<div style="color:var(--success); font-size:12.5px; margin-top:4px; font-weight:600;">المؤجّر حاليًا: ${p.supplier_name}</div>` : ''}
+          <div style="font-weight:700; direction:ltr; text-align:right; font-family:var(--font-mono);">${esc(p.part_code)}</div>
+          <div style="color:var(--muted); font-size:12px; margin-top:3px;">${esc(p.unit_type)}${p.category_name ? ' — ' + p.category_name : ''}</div>
+          ${p.supplier_name ? `<div style="color:var(--success); font-size:12.5px; margin-top:4px; font-weight:600;">المؤجّر حاليًا: ${esc(p.supplier_name)}</div>` : ''}
         </div>
         <a id="close-part-editor" style="color:var(--muted); cursor:pointer; font-size:18px; line-height:1;">✕</a>
       </div>
@@ -3543,7 +3648,7 @@ async function loadBranches(){
   const { data, error } = await sb.rpc('get_my_allowed_branches');
   if(error){ showToast('خطأ في تحميل الفروع: ' + error.message, true); return; }
   const sel = $('f-branch');
-  sel.innerHTML = '<option value="">اختر فرع...</option>' + (data||[]).map(b => `<option value="${b.id}">${b.name} (${b.code})</option>`).join('');
+  sel.innerHTML = '<option value="">اختر فرع...</option>' + (data||[]).map(b => `<option value="${b.id}">${esc(b.name)} (${b.code})</option>`).join('');
 }
 
 async function loadFloors(branchId){
@@ -3552,7 +3657,7 @@ async function loadFloors(branchId){
   const { data, error } = await sb.from('branch_floors').select('*').eq('branch_id', branchId).order('name');
   if(error){ showToast('خطأ في تحميل الطوابق: ' + error.message, true); return; }
   sel.innerHTML = (data && data.length)
-    ? data.map(f => `<option value="${f.id}">${f.name} (${f.code})</option>`).join('')
+    ? data.map(f => `<option value="${f.id}">${esc(f.name)} (${f.code})</option>`).join('')
     : '<option value="">مفيش طوابق — ضيف طابق جديد</option>';
 }
 
@@ -3598,7 +3703,7 @@ async function loadCategories(){
   const { data, error } = await sb.from('categories').select('*').order('name');
   if(error){ showToast('خطأ في تحميل التصنيفات: ' + error.message, true); return; }
   const sel = $('f-category');
-  sel.innerHTML = '<option value="">بدون تصنيف...</option>' + (data||[]).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  sel.innerHTML = '<option value="">بدون تصنيف...</option>' + (data||[]).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
 }
 
 async function loadSubcategories(categoryId){
@@ -3607,7 +3712,7 @@ async function loadSubcategories(categoryId){
   const { data, error } = await sb.from('subcategories').select('*').eq('category_id', categoryId).order('name');
   if(error){ showToast('خطأ في تحميل التصنيفات الفرعية: ' + error.message, true); return; }
   sel.innerHTML = '<option value="">بدون تصنيف فرعي...</option>' + (data && data.length
-    ? data.map(s => `<option value="${s.id}">${s.name}</option>`).join('')
+    ? data.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('')
     : '');
 }
 
@@ -3765,7 +3870,7 @@ function renderCodesGrid(){
   function makeChip(p, idx){
     const chip = document.createElement('div');
     chip.className = 'code-chip' + (p.tier === 'premium' ? ' premium' : '');
-    chip.innerHTML = `<span class="tier-badge">${p.tier === 'premium' ? '★' : ''}</span><span class="c" style="direction:ltr;">${p.part_code}</span><span class="t">${p.unit_type}</span>`;
+    chip.innerHTML = `<span class="tier-badge">${p.tier === 'premium' ? '★' : ''}</span><span class="c" style="direction:ltr;">${esc(p.part_code)}</span><span class="t">${esc(p.unit_type)}</span>`;
     chip.addEventListener('click', () => {
       generatedParts[idx].tier = generatedParts[idx].tier === 'premium' ? 'standard' : 'premium';
       renderCodesGrid();
@@ -3833,7 +3938,7 @@ function renderCodesGrid(){
     chip.style.gridRow = String(rowCursor);
     chip.style.gridColumn = String(col);
     chip.style.display = 'flex'; chip.style.flexDirection = 'column'; chip.style.justifyContent = 'center'; chip.style.alignItems = 'center'; chip.style.textAlign='center';
-    chip.innerHTML = `<span class="tier-badge">${p.tier === 'premium' ? '★' : ''}</span><span class="c" style="direction:ltr;">${p.part_code}</span><span class="t">L0${p.level}</span>`;
+    chip.innerHTML = `<span class="tier-badge">${p.tier === 'premium' ? '★' : ''}</span><span class="c" style="direction:ltr;">${esc(p.part_code)}</span><span class="t">L0${p.level}</span>`;
     chip.addEventListener('click', () => {
       generatedParts[idx].tier = generatedParts[idx].tier === 'premium' ? 'standard' : 'premium';
       renderCodesGrid();
@@ -4349,9 +4454,9 @@ async function renderPartDetails(code){
   $('d-status').innerHTML = `<span class="status-dot ${dotClass}"></span>${statusMap[p.status] || p.status}`;
 
   $('d-unittype').textContent = p.unit_type + (p.side ? ' — ' + (p.side==='front'?'أمامي':'خلفي') : '') + (p.is_endcap ? ' (طرف مشترك)' : '');
-  $('d-rack').textContent = `${p.rack_code} (${p.rack_type === 'shelf' ? 'رف عادي' : p.rack_type === 'pallet' ? 'طبلية' : 'ثلاجة ' + (p.freezer_subtype||'')})`;
-  $('d-branch').textContent = `${p.branch_name || '—'} / ${p.floor_name || '—'}`;
-  $('d-supplier').textContent = p.supplier_name ? `${p.supplier_name} (${p.supplier_code})` : 'لا يوجد مورد';
+  $('d-rack').textContent = `${esc(p.rack_code)} (${p.rack_type === 'shelf' ? 'رف عادي' : p.rack_type === 'pallet' ? 'طبلية' : 'ثلاجة ' + (p.freezer_subtype||'')})`;
+  $('d-branch').textContent = `${esc(p.branch_name || '—')} / ${esc(p.floor_name || '—')}`;
+  $('d-supplier').textContent = p.supplier_name ? `${esc(p.supplier_name)} (${p.supplier_code})` : 'لا يوجد مورد';
 
   if(p.rental_value !== null && p.rental_value !== undefined){
     $('d-rental-row').style.display = 'flex';
@@ -4575,7 +4680,7 @@ function makeGroupChip(p, onClick, compact, isFreezer){
   const color = { occupied:'var(--success)', vacant:'var(--muted)', maintenance:'var(--amber)' }[p.status] || 'var(--muted)';
   chip.className = 'group-chip' + (p.tier === 'premium' ? ' premium' : '');
   const label = compact ? (isFreezer ? p.unit_type : 'L0'+p.level) : p.part_code;
-  chip.innerHTML = `<span class="gc-code">${label}</span><span class="gc-sub">${p.supplier_name || 'فارغ'}</span>
+  chip.innerHTML = `<span class="gc-code">${label}</span><span class="gc-sub">${esc(p.supplier_name || 'فارغ')}</span>
     <span style="display:block; width:6px; height:6px; border-radius:50%; background:${color}; margin:2px auto 0;"></span>`;
   chip.addEventListener('click', (e) => { e.stopPropagation(); onClick(p); });
   return chip;
@@ -4597,7 +4702,7 @@ function makeGroupRow(label, parts, onClick){
 async function loadEditCategoriesFor(catId, subId, selectedCategoryId, selectedSubcategoryId){
   const { data: cats } = await sb.from('categories').select('*').order('name');
   const catSel = $(catId);
-  catSel.innerHTML = '<option value="">بدون تصنيف</option>' + (cats||[]).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  catSel.innerHTML = '<option value="">بدون تصنيف</option>' + (cats||[]).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
   catSel.value = selectedCategoryId || '';
   await loadEditSubcategoriesFor(catId, subId, selectedCategoryId, selectedSubcategoryId);
 }
@@ -4606,7 +4711,7 @@ async function loadEditSubcategoriesFor(catId, subId, categoryId, selectedSubcat
   const subSel = $(subId);
   if(!categoryId){ subSel.innerHTML = '<option value="">بدون تصنيف فرعي</option>'; return; }
   const { data: subs } = await sb.from('subcategories').select('*').eq('category_id', categoryId).order('name');
-  subSel.innerHTML = '<option value="">بدون تصنيف فرعي</option>' + (subs||[]).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  subSel.innerHTML = '<option value="">بدون تصنيف فرعي</option>' + (subs||[]).map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('');
   subSel.value = selectedSubcategoryId || '';
 }
 
@@ -4656,8 +4761,8 @@ $('go-history').addEventListener('click', async () => {
   $('history-list').innerHTML = data.map(h => `
     <div class="hist-item">
       <span class="badge ${h.action}">${labelMap[h.action] || h.action}</span>
-      ${h.field_changed ? `${h.field_changed}: ${h.old_value || '—'} → ${h.new_value || '—'}` : 'إنشاء الوحدة'}
-      <div class="meta">${h.changed_by_name} · ${new Date(h.changed_at).toLocaleString('ar-EG')}</div>
+      ${h.field_changed ? `${h.field_changed}: ${esc(h.old_value || '—')} → ${esc(h.new_value || '—')}` : 'إنشاء الوحدة'}
+      <div class="meta">${esc(h.changed_by_name)} · ${new Date(h.changed_at).toLocaleString('ar-EG')}</div>
     </div>
   `).join('');
 });
