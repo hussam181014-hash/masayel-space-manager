@@ -1792,7 +1792,7 @@ async function loadSuppliersList(){
 
 const MONTH_NAMES = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 
-async function loadSupplierMonthly(supplierId){
+async function loadSupplierMonthly(supplierId, pctRate){
   const box = $('se-monthly-box');
   if(!box) return;
   const { data, error } = await sb.rpc('get_supplier_monthly', { p_supplier_id: supplierId });
@@ -1828,22 +1828,23 @@ async function loadSupplierMonthly(supplierId){
 
   box.querySelectorAll('.sm-edit').forEach(b => b.addEventListener('click', () => {
     const rec = data.find(m => m.id === b.dataset.id);
-    openMonthlyEditor(supplierId, rec);
+    openMonthlyEditor(supplierId, rec, pctRate);
   }));
   box.querySelectorAll('.sm-del').forEach(b => b.addEventListener('click', async () => {
     const { error } = await sb.rpc('delete_supplier_monthly', { p_id: b.dataset.id });
     if(error){ showToast('تعذّر الحذف: ' + error.message, true); return; }
     showToast('تم حذف السجل الشهري.');
-    await loadSupplierMonthly(supplierId);
+    await loadSupplierMonthly(supplierId, pctRate);
   }));
 }
 
-function openMonthlyEditor(supplierId, rec){
+function openMonthlyEditor(supplierId, rec, pctRate){
   const isNew = !rec;
   const now = new Date();
   const v = (x) => (x === null || x === undefined) ? '' : x;
   const yr = rec ? rec.period_year : now.getFullYear();
   const mo = rec ? rec.period_month : (now.getMonth() + 1);
+  const rate = Number(pctRate || 0);
 
   openModal(`
     <div style="padding:20px;">
@@ -1873,7 +1874,10 @@ function openMonthlyEditor(supplierId, rec){
       </div>
 
       <div style="font-size:12px; font-weight:700; color:var(--accent); margin:14px 0 8px;">إيجار النسبة وطرق تحصيله</div>
-      <div class="field"><label>المستحق كنسبة من المشتريات (د.ك)</label><input type="number" step="0.001" id="sm-pctdue" value="${v(rec?.pct_rent_due)}" style="direction:ltr;"></div>
+      <div class="field"><label>المستحق كنسبة من المشتريات (د.ك)</label>
+        <input type="number" step="0.001" id="sm-pctdue" value="${v(rec?.pct_rent_due)}" style="direction:ltr;">
+        ${rate > 0 ? `<button class="btn tiny ghost" id="sm-calc-pct" style="margin-top:6px;"><i class="ti ti-calculator"></i> احسب تلقائيًا (${rate}% من المشتريات)</button>` : ''}
+      </div>
       <div class="grid2">
         <div class="field"><label>خصم على الفاتورة</label><input type="number" step="0.001" id="sm-c-invoice" value="${v(rec?.collected_invoice_discount)}" style="direction:ltr;"></div>
         <div class="field"><label>بضاعة مجانية</label><input type="number" step="0.001" id="sm-c-goods" value="${v(rec?.collected_free_goods)}" style="direction:ltr;"></div>
@@ -1910,6 +1914,14 @@ function openMonthlyEditor(supplierId, rec){
   };
   ['sm-pctdue','sm-c-invoice','sm-c-goods','sm-c-notes'].forEach(id =>
     $(id).addEventListener('input', updatePctSummary));
+  if(rate > 0 && $('sm-calc-pct')){
+    $('sm-calc-pct').addEventListener('click', () => {
+      const purchase = Number($('sm-purchase').value || 0);
+      if(!purchase){ showToast('اكتب صافي المشتريات الأول.', true); return; }
+      $('sm-pctdue').value = (purchase * rate / 100).toFixed(3);
+      updatePctSummary();
+    });
+  }
   updatePctSummary();
   $('sm-save').addEventListener('click', async () => {
     $('sm-err').style.display = 'none';
@@ -1991,14 +2003,8 @@ async function openSupplierEditor(supplierId){
         </div>
       </div>
 
-      <div style="font-size:12px; font-weight:700; color:var(--accent); margin:16px 0 8px;">الخصومات والدعم</div>
-      <div class="grid2">
-        <div class="field"><label>نوع الخصم</label><input type="text" id="se-dtype" value="${esc(v(s.discount_type))}"></div>
-        <div class="field"><label>قيمة الدعم (د.ك)</label><input type="number" step="0.001" id="se-support" value="${v(s.support_amount)}" style="direction:ltr;"></div>
-        <div class="field"><label>خصم ١ (%)</label><input type="number" step="0.01" id="se-d1" value="${v(s.discount_pct_1)}" style="direction:ltr;"></div>
-        <div class="field"><label>خصم ٢ (%)</label><input type="number" step="0.01" id="se-d2" value="${v(s.discount_pct_2)}" style="direction:ltr;"></div>
-        <div class="field"><label>خصم ٣ (%)</label><input type="number" step="0.01" id="se-d3" value="${v(s.discount_pct_3)}" style="direction:ltr;"></div>
-      </div>
+      <div style="font-size:12px; font-weight:700; color:var(--accent); margin:16px 0 8px;">الدعم</div>
+      <div class="field"><label>قيمة الدعم (د.ك)</label><input type="number" step="0.001" id="se-support" value="${v(s.support_amount)}" style="direction:ltr;"></div>
 
       ${isNew ? '' : `
       <div style="font-size:12px; font-weight:700; color:var(--accent); margin:16px 0 8px; display:flex; justify-content:space-between; align-items:center;">
@@ -2023,8 +2029,8 @@ async function openSupplierEditor(supplierId){
   });
 
   if(!isNew){
-    loadSupplierMonthly(supplierId);
-    $('se-add-month').addEventListener('click', () => openMonthlyEditor(supplierId, null));
+    loadSupplierMonthly(supplierId, s.pct_rent_rate);
+    $('se-add-month').addEventListener('click', () => openMonthlyEditor(supplierId, null, s.pct_rent_rate));
   }
 
   $('se-save').addEventListener('click', async () => {
@@ -2038,8 +2044,7 @@ async function openSupplierEditor(supplierId){
     const { error } = await sb.rpc('upsert_supplier', {
       p_id: supplierId, p_supplier_code: num('se-code'), p_supplier_name: $('se-name').value.trim(),
       p_category: txt('se-category'), p_contract_start: txt('se-cstart'), p_contract_end: txt('se-cend'),
-      p_file_opening_fee: num('se-fee'), p_discount_type: txt('se-dtype'),
-      p_discount_pct_1: num('se-d1'), p_discount_pct_2: num('se-d2'), p_discount_pct_3: num('se-d3'),
+      p_file_opening_fee: num('se-fee'),
       p_support_amount: num('se-support'),
       p_has_fixed_rent: $('se-has-fixed').checked,
       p_fixed_rent_amount: num('se-fixed-amt'),
