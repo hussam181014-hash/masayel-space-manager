@@ -1337,9 +1337,13 @@ function applyPermissionVisibility(){
   const showUsers = currentRole === 'owner';
   const showCategories = currentRole === 'owner' || currentPerms.can_manage_spaces;
   const showReports = currentRole === 'owner' || currentPerms.can_view_spaces || currentPerms.can_manage_spaces || currentPerms.can_scan;
+  const showCreateRack = currentRole === 'owner' || currentPerms.can_manage_spaces;
+  const showScan = currentRole === 'owner' || currentPerms.can_scan || currentPerms.can_view_spaces;
   ['nav-go-users','dash-go-users'].forEach(id => $(id).style.display = showUsers ? '' : 'none');
   ['nav-go-categories','dash-go-categories'].forEach(id => $(id).style.display = showCategories ? '' : 'none');
   ['nav-go-reports','dash-go-reports'].forEach(id => $(id).style.display = showReports ? '' : 'none');
+  ['nav-go-rack','dash-go-rack'].forEach(id => $(id).style.display = showCreateRack ? '' : 'none');
+  ['nav-go-scan','dash-go-scan'].forEach(id => $(id).style.display = showScan ? '' : 'none');
   $('activitylog-tab-btn').style.display = currentRole === 'owner' ? '' : 'none';
   renderWelcomePanel();
 }
@@ -1358,22 +1362,24 @@ function renderWelcomePanel(){
     ? 'إنت المالك — كل صلاحيات النظام متاحة ليك.'
     : 'دي الصلاحيات المتاحة ليك حاليًا:';
 
-  const perms = [
+  const allPerms = [
     { on: isOwner || currentPerms.can_view_spaces,  icon:'ti-eye',        label:'عرض المساحات والتقارير' },
     { on: isOwner || currentPerms.can_manage_spaces, icon:'ti-layout-grid', label:'إنشاء وتعديل الأرفف' },
     { on: isOwner || currentPerms.can_scan,          icon:'ti-qrcode',      label:'مسح وتحديث الباركود' },
   ];
-  if(isOwner) perms.push({ on:true, icon:'ti-users', label:'إدارة المستخدمين' });
+  if(isOwner) allPerms.push({ on:true, icon:'ti-users', label:'إدارة المستخدمين' });
 
-  $('welcome-perms').innerHTML = perms.map(p =>
-    `<span class="perm-pill${p.on ? ' on' : ''}">
-      <i class="ti ${p.on ? p.icon : 'ti-lock'}"></i>${esc(p.label)}${p.on ? '' : ' (غير متاح)'}
-    </span>`).join('');
+  const granted = allPerms.filter(p => p.on);
 
-  const hasAny = perms.some(p => p.on);
-  if(!hasAny){
+  if(!granted.length){
     $('welcome-sub').textContent = 'لسه مفيش صلاحيات متفعّلة لحسابك — كلّم مسؤول النظام.';
+    $('welcome-perms').innerHTML = '';
+    return;
   }
+
+  $('welcome-perms').innerHTML = granted.map(p =>
+    `<span class="perm-pill on"><i class="ti ${p.icon}"></i>${esc(p.label)}</span>`
+  ).join('');
 }
 
 async function enterApp(){
