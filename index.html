@@ -621,8 +621,19 @@
   <div class="card">
     <h2 id="auth-title">تسجيل الدخول</h2>
     <p class="sub" id="auth-sub">ادخل بحسابك للمتابعة إلى نظام إدارة المساحات.</p>
-    <div class="field"><label>البريد الإلكتروني</label><input type="email" id="auth-email"></div>
-    <div class="field"><label>كلمة المرور</label><input type="password" id="auth-pass"></div>
+    <div class="field"><label>الاسم أو البريد الإلكتروني</label><input type="text" id="auth-email" autocomplete="username" placeholder="اسمك بالكامل أو بريدك"></div>
+    <div class="field">
+      <label>كلمة المرور</label>
+      <div style="position:relative;">
+        <input type="password" id="auth-pass" autocomplete="current-password" style="padding-inline-start:44px;">
+        <button type="button" id="toggle-pass" aria-label="إظهار كلمة المرور"
+          style="position:absolute; inset-inline-start:6px; top:50%; transform:translateY(-50%); width:34px; height:34px;
+          display:flex; align-items:center; justify-content:center; background:none; border:none; cursor:pointer;
+          color:var(--muted); padding:0; font-size:18px;">
+          <i class="ti ti-eye"></i>
+        </button>
+      </div>
+    </div>
     <button class="btn" id="auth-submit">دخول</button>
     <div class="err" id="auth-err"></div>
     <p style="text-align:center; margin-top:14px; font-size:12px; color:var(--muted);">الحسابات الجديدة بتتضاف من المالك بس. محتاج حساب؟ كلّم مسؤول النظام.</p>
@@ -1232,13 +1243,24 @@ $('app-modal-overlay').addEventListener('click', (e) => { if(e.target.id === 'ap
 document.addEventListener('keydown', (e) => { if(e.key === 'Escape') closeModal(); });
 
 /* ================= AUTH (تسجيل دخول بس — الحسابات بتتضاف من المالك) ================= */
-$('auth-submit').addEventListener('click', async () => {
-  const email = $('auth-email').value.trim();
+async function doLogin(){
+  const identifier = $('auth-email').value.trim();
   const password = $('auth-pass').value;
   $('auth-err').style.display = 'none';
-  if(!email || !password){ showAuthErr('اكتب البريد وكلمة المرور.'); return; }
+  if(!identifier || !password){ showAuthErr('اكتب اسمك (أو بريدك) وكلمة المرور.'); return; }
   $('auth-submit').disabled = true;
   try{
+    // لو المدخل اسم مش بريد، نحوّله للبريد المرتبط بيه الأول
+    let email = identifier;
+    if(!identifier.includes('@')){
+      const { data: resolved, error: resErr } = await sb.rpc('resolve_login_identifier', { p_identifier: identifier });
+      if(resErr || !resolved){
+        showAuthErr('الاسم ده مش مسجّل — تأكد من كتابته صح، أو استخدم بريدك الإلكتروني.');
+        $('auth-submit').disabled = false;
+        return;
+      }
+      email = resolved;
+    }
     const res = await sb.auth.signInWithPassword({ email, password });
     if(res.error) throw res.error;
     await enterApp();
@@ -1247,12 +1269,28 @@ $('auth-submit').addEventListener('click', async () => {
     if(msg.includes('Email not confirmed')){
       showAuthErr('لسه مأكدتش إيميلك — افتح صندوق الوارد ودوس على رابط التأكيد الأول قبل ما تسجّل دخول.');
     } else if(msg.includes('Invalid login credentials')){
-      showAuthErr('البريد أو كلمة المرور غلط.');
+      showAuthErr('البيانات غلط — تأكد من الاسم/البريد وكلمة المرور.');
     } else {
       showAuthErr(msg || 'حصل خطأ، حاول تاني.');
     }
     $('auth-submit').disabled = false;
   }
+}
+
+$('auth-submit').addEventListener('click', doLogin);
+// تفعيل زر Enter من أي خانة في نموذج الدخول
+['auth-email','auth-pass'].forEach(id => {
+  $(id).addEventListener('keydown', (e) => {
+    if(e.key === 'Enter'){ e.preventDefault(); doLogin(); }
+  });
+});
+// إظهار / إخفاء كلمة المرور
+$('toggle-pass').addEventListener('click', () => {
+  const inp = $('auth-pass'), btn = $('toggle-pass');
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  btn.innerHTML = `<i class="ti ti-eye${show ? '-off' : ''}"></i>`;
+  btn.setAttribute('aria-label', show ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور');
 });
 
 function showAuthErr(msg){ const el = $('auth-err'); el.textContent = msg; el.style.display='block'; }
