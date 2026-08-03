@@ -15,12 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <style>
   :root{
     --font-ui:'Tajawal',sans-serif; --font-mono:'IBM Plex Mono',monospace;
@@ -197,9 +192,20 @@
   .success-box h3{font-size:18px; margin-bottom:6px;}
   .success-box p{color:var(--muted); font-size:13px; margin-bottom:20px;}
 
-  .toast{position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--panel-2);
-    border:1px solid var(--border); padding:12px 20px; border-radius:10px; font-size:13px; display:none; z-index:99;}
-  .toast.err{border-color:var(--danger); color:#be123c;}
+  @keyframes toast-in{from{opacity:0; transform:translateX(-50%) translateY(14px);} to{opacity:1; transform:translateX(-50%) translateY(0);}}
+  .toast{
+    position:fixed; bottom:22px; left:50%; transform:translateX(-50%);
+    background:var(--panel); border:1px solid var(--border-strong); box-shadow:0 8px 28px rgba(15,23,42,.14);
+    padding:12px 18px; border-radius:12px; font-size:13px; font-weight:500; display:none; z-index:400;
+    align-items:center; gap:9px; max-width:calc(100vw - 32px);
+  }
+  .toast.show{display:flex; animation:toast-in .22s cubic-bezier(.22,.9,.32,1);}
+  .toast .t-ic{
+    width:24px; height:24px; border-radius:7px; display:flex; align-items:center; justify-content:center;
+    font-size:14px; flex-shrink:0; background:var(--accent-dim); color:var(--accent-hover);
+  }
+  .toast.err{border-color:var(--danger);}
+  .toast.err .t-ic{background:rgba(239,68,68,.12); color:var(--danger);}
 
   @media (max-width:640px){
     .type-grid, .grid2, .grid3, .sub-grid, .placement-row{grid-template-columns:1fr; flex-direction:column;}
@@ -418,6 +424,117 @@
   .breadcrumb{font-size:22px; font-weight:600; color:var(--text);}
 
   .dash-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:var(--sp-4);}
+  /* ===== انتقالات الصفحات وتفاعلات دقيقة ===== */
+  @keyframes page-in{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;}}
+  .page-enter{animation:page-in .22s cubic-bezier(.22,.9,.32,1);}
+
+  .btn, .dash-card, .kpi-card, .nav-item, .report-tab-btn, .pg-btn{
+    transition:transform .15s ease, box-shadow .18s ease, background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .btn:active:not(:disabled){transform:scale(.975);}
+  .dash-card:hover{transform:translateY(-3px); box-shadow:var(--shadow);}
+  .dash-card:active{transform:translateY(-1px);}
+
+  /* تركيز واضح للوصولية ولوحة المفاتيح */
+  :focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:6px;}
+  .btn:focus-visible, .nav-item:focus-visible{outline-offset:3px;}
+
+  /* مساحات لمس مريحة على الهاتف */
+  @media (max-width:640px){
+    .btn.tiny{min-height:38px;}
+    .nav-item{min-height:46px;}
+    .cmdk-item{min-height:52px;}
+    .kpi-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));}
+    #cmdk-overlay{padding:6vh 12px 12px;}
+    .cmdk-foot{display:none;}
+  }
+
+  /* احترام تفضيل تقليل الحركة في نظام المستخدم */
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{
+      animation-duration:.01ms !important; animation-iteration-count:1 !important;
+      transition-duration:.01ms !important; scroll-behavior:auto !important;
+    }
+  }
+
+  /* ===== لوحة الأوامر والبحث الشامل (Ctrl+K) ===== */
+  @keyframes cmdk-in{from{opacity:0; transform:translateY(-12px) scale(.98);} to{opacity:1; transform:none;}}
+  #cmdk-box{
+    max-width:600px; margin:0 auto; background:var(--panel); border:1px solid var(--border-strong);
+    border-radius:16px; box-shadow:0 20px 60px rgba(15,23,42,.22); overflow:hidden;
+    animation:cmdk-in .16s ease-out;
+  }
+  .cmdk-input-wrap{display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid var(--border);}
+  .cmdk-input-wrap i{font-size:19px; color:var(--muted); flex-shrink:0;}
+  #cmdk-input{
+    flex:1; border:none; background:none; outline:none; padding:0;
+    font-family:var(--font-ui); font-size:15px; color:var(--text);
+  }
+  .cmdk-kbd{
+    font-family:var(--font-mono); font-size:10px; padding:2px 6px; border-radius:5px;
+    background:var(--panel-2); border:1px solid var(--border); color:var(--muted);
+  }
+  #cmdk-results{max-height:52vh; overflow-y:auto; padding:6px;}
+  .cmdk-group{font-size:10.5px; font-weight:700; color:var(--muted); padding:9px 12px 5px;}
+  .cmdk-item{
+    display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:9px; cursor:pointer;
+  }
+  .cmdk-item.sel{background:var(--accent-dim);}
+  .cmdk-item .ci-ic{
+    width:30px; height:30px; border-radius:8px; background:var(--panel-2); color:var(--muted);
+    display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0;
+  }
+  .cmdk-item.sel .ci-ic{background:var(--accent); color:#fff;}
+  .cmdk-item .ci-title{font-size:13.5px; font-weight:600;}
+  .cmdk-item .ci-sub{font-size:11px; color:var(--muted); margin-top:1px;}
+  .cmdk-foot{
+    display:flex; gap:16px; padding:9px 16px; border-top:1px solid var(--border);
+    background:var(--panel-2); font-size:11px; color:var(--muted); flex-wrap:wrap;
+  }
+  .cmdk-foot span{display:flex; align-items:center; gap:4px;}
+  .cmdk-empty{padding:28px 16px; text-align:center; color:var(--muted); font-size:13px;}
+
+  /* ===== بطاقات المؤشرات (KPI) ===== */
+  .kpi-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:var(--sp-3); margin-bottom:var(--sp-6);}
+  .kpi-card{
+    background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+    padding:16px; display:flex; flex-direction:column; gap:10px; position:relative; overflow:hidden;
+    transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  }
+  .kpi-card:hover{transform:translateY(-2px); box-shadow:var(--shadow); border-color:var(--border-strong);}
+  .kpi-card .kc-top{display:flex; align-items:center; justify-content:space-between;}
+  .kpi-card .kc-ic{
+    width:34px; height:34px; border-radius:10px; display:flex; align-items:center; justify-content:center;
+    font-size:17px; background:var(--accent-dim); color:var(--accent-hover); flex-shrink:0;
+  }
+  .kpi-card .kc-badge{font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:20px;}
+  .kpi-card .kc-value{font-size:26px; font-weight:800; line-height:1; font-family:var(--font-mono);}
+  .kpi-card .kc-label{font-size:12px; color:var(--muted); font-weight:500;}
+  .kpi-card.clickable{cursor:pointer;}
+
+  .section-label{
+    display:flex; align-items:center; gap:7px; font-size:13px; font-weight:700;
+    color:var(--muted); margin:0 0 var(--sp-3);
+  }
+  .section-label i{font-size:15px; color:var(--accent);}
+
+  /* ===== تحميل هيكلي (Skeleton) ===== */
+  @keyframes skeleton-pulse{0%,100%{opacity:1;} 50%{opacity:.45;}}
+  .skeleton{
+    background:var(--panel-2); border-radius:8px;
+    animation:skeleton-pulse 1.4s ease-in-out infinite;
+  }
+  .kpi-skeleton{height:104px; border-radius:var(--radius);}
+
+  /* ===== حالات فارغة (Empty States) ===== */
+  .empty-state{text-align:center; padding:38px 20px;}
+  .empty-state .es-ic{
+    width:64px; height:64px; border-radius:20px; margin:0 auto 14px;
+    background:var(--accent-dim); color:var(--accent); display:flex; align-items:center; justify-content:center; font-size:30px;
+  }
+  .empty-state h3{font-size:15px; font-weight:700; margin-bottom:6px;}
+  .empty-state p{font-size:13px; color:var(--muted); margin-bottom:16px; max-width:340px; margin-inline:auto;}
+
   .welcome-panel{
     background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-card);
     padding:22px 24px; margin-bottom:var(--sp-5); position:relative; overflow:hidden;
@@ -663,6 +780,12 @@
       </svg>
       <div class="brand-text"><h1 id="sidebar-org-name" style="font-size:13px;">جمعية المسايل التعاونية</h1><span class="brand-sub" id="sidebar-powered-by">بواسطة <span class="wordmark">MASAHA<span class="wm-dot"></span></span></span></div>
     </div>
+    <div id="sidebar-search" style="margin:0 2px 8px; cursor:pointer; display:flex; align-items:center; gap:8px;
+      padding:10px 12px; border-radius:10px; background:var(--panel-2); border:1px solid var(--border);">
+      <i class="ti ti-search" style="font-size:16px; color:var(--muted);"></i>
+      <span style="font-size:12.5px; color:var(--muted); flex:1;">بحث شامل</span>
+      <kbd class="cmdk-kbd">Ctrl K</kbd>
+    </div>
     <div id="notif-bell" style="position:relative; margin:0 2px 12px; cursor:pointer; display:flex; align-items:center; gap:8px;
       padding:10px 12px; border-radius:10px; background:var(--panel-2); border:1px solid var(--border);">
       <i class="ti ti-bell" style="font-size:17px; color:var(--muted);"></i>
@@ -707,12 +830,25 @@
         </div>
         <div class="welcome-perms" id="welcome-perms"></div>
       </div>
+
+      <!-- مؤشرات الأداء الرئيسية -->
+      <div class="kpi-grid" id="dash-kpis"></div>
+
+      <!-- الإجراءات السريعة -->
+      <div class="section-label"><i class="ti ti-bolt"></i> إجراءات سريعة</div>
       <div class="dash-grid">
         <div class="dash-card" id="dash-go-rack"><div class="dc-ic"><i class="ti ti-plus"></i></div><h3>إنشاء رف جديد</h3><p>رف، طبلية، أو ثلاجة</p></div>
         <div class="dash-card" id="dash-go-scan"><div class="dc-ic"><i class="ti ti-qrcode"></i></div><h3>مسح الباركود</h3><p>عرض وتعديل حالة القواطع</p></div>
         <div class="dash-card" id="dash-go-reports" style="display:none;"><div class="dc-ic"><i class="ti ti-chart-bar"></i></div><h3>تقارير المساحات</h3><p>خريطة الموقع والإحصائيات</p></div>
+        <div class="dash-card" id="dash-go-suppliers" style="display:none;"><div class="dc-ic"><i class="ti ti-truck-delivery"></i></div><h3>إدارة الموردين</h3><p>العقود والبيانات الشهرية</p></div>
         <div class="dash-card" id="dash-go-categories" style="display:none;"><div class="dc-ic"><i class="ti ti-tag"></i></div><h3>إدارة التصنيفات</h3><p>رئيسية وفرعية</p></div>
         <div class="dash-card" id="dash-go-users" style="display:none;"><div class="dc-ic"><i class="ti ti-users"></i></div><h3>إدارة المستخدمين</h3><p>تحديد من يشوف ويعمل إيه</p></div>
+      </div>
+
+      <!-- آخر العمليات -->
+      <div id="dash-activity-wrap" style="display:none;">
+        <div class="section-label"><i class="ti ti-history"></i> آخر العمليات</div>
+        <div class="card" id="dash-activity"></div>
       </div>
     </div>
 
@@ -1140,7 +1276,23 @@
   </main>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<div id="cmdk-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:300; padding:12vh 20px 20px; backdrop-filter:blur(2px);">
+  <div id="cmdk-box">
+    <div class="cmdk-input-wrap">
+      <i class="ti ti-search"></i>
+      <input type="text" id="cmdk-input" placeholder="ابحث عن رف، مورد، وحدة، تصنيف... أو انتقل لصفحة" autocomplete="off">
+      <kbd class="cmdk-kbd">Esc</kbd>
+    </div>
+    <div id="cmdk-results"></div>
+    <div class="cmdk-foot">
+      <span><kbd class="cmdk-kbd">↑</kbd><kbd class="cmdk-kbd">↓</kbd> تنقّل</span>
+      <span><kbd class="cmdk-kbd">Enter</kbd> فتح</span>
+      <span><kbd class="cmdk-kbd">Ctrl</kbd>+<kbd class="cmdk-kbd">K</kbd> لفتح البحث</span>
+    </div>
+  </div>
+</div>
 
 <div id="app-modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:200; align-items:center; justify-content:center; padding:20px;">
   <div id="app-modal-box" style="background:var(--panel); border-radius:var(--radius-card); max-width:460px; width:100%; max-height:88vh; overflow-y:auto; box-shadow:var(--shadow);"></div>
@@ -1229,6 +1381,35 @@ let selectedPlacement = null;
 
 const $ = (id) => document.getElementById(id);
 
+/* ===== تحميل المكتبات الثقيلة عند الحاجة فقط (Lazy Loading) =====
+   بدل ما النظام يحمّل ~1.5 ميجا عند كل فتح، كل مكتبة بتتحمّل أول مرة تُستخدم فيها بس.
+   الوعد بيتخزّن عشان لو اتطلبت تاني ماتتحمّلش من الأول. */
+const _libCache = {};
+function loadScriptOnce(url){
+  if(_libCache[url]) return _libCache[url];
+  _libCache[url] = new Promise((resolve, reject) => {
+    const el = document.createElement('script');
+    el.src = url;
+    el.onload = resolve;
+    el.onerror = () => { delete _libCache[url]; reject(new Error('تعذّر تحميل: ' + url)); };
+    document.head.appendChild(el);
+  });
+  return _libCache[url];
+}
+
+const LIB = {
+  chart:   () => (typeof Chart !== 'undefined') ? Promise.resolve()
+             : loadScriptOnce('https://cdn.jsdelivr.net/npm/chart.js@4'),
+  qrScan:  () => (typeof Html5Qrcode !== 'undefined') ? Promise.resolve()
+             : loadScriptOnce('https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js'),
+  qrGen:   () => (typeof QRCode !== 'undefined') ? Promise.resolve()
+             : loadScriptOnce('https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.js'),
+  canvas:  () => (typeof html2canvas !== 'undefined') ? Promise.resolve()
+             : loadScriptOnce('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js'),
+  pdf:     () => (typeof window.jspdf !== 'undefined') ? Promise.resolve()
+             : loadScriptOnce('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js'),
+};
+
 // تعقيم أي نص جاي من قاعدة البيانات قبل حقنه في HTML (حماية من XSS)
 function esc(v){
   if(v === null || v === undefined) return '';
@@ -1240,12 +1421,14 @@ function esc(v){
     .replace(/'/g, '&#39;');
 }
 
+let _toastTimer = null;
 function showToast(msg, isErr=false){
   const t = $('toast');
-  t.textContent = msg;
-  t.className = 'toast' + (isErr ? ' err' : '');
-  t.style.display = 'block';
-  setTimeout(()=> t.style.display='none', 3800);
+  t.innerHTML = `<span class="t-ic"><i class="ti ${isErr ? 'ti-alert-circle' : 'ti-check'}"></i></span><span>${esc(msg)}</span>`;
+  t.className = 'toast show' + (isErr ? ' err' : '');
+  t.setAttribute('role', isErr ? 'alert' : 'status');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { t.className = 'toast'; }, 3800);
 }
 
 function openModal(html){
@@ -1329,7 +1512,12 @@ const SECTION_LABELS = {
 
 function showSection(id){
   document.querySelectorAll('.content-section').forEach(s => s.style.display = 'none');
-  $(id).style.display = 'block';
+  const el = $(id);
+  el.style.display = 'block';
+  // انتقال ناعم عند تبديل الصفحات (بيحترم إعداد تقليل الحركة في الجهاز)
+  el.classList.remove('page-enter');
+  void el.offsetWidth;
+  el.classList.add('page-enter');
   $('breadcrumb').textContent = SECTION_LABELS[id] || '';
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.section === id));
   $('sidebar').classList.remove('open');
@@ -1385,6 +1573,7 @@ async function goToSection(target){
     await loadProfilePage();
   } else {
     showSection('dashboard-home');
+    loadDashboard();
   }
 }
 
@@ -1400,13 +1589,237 @@ function applyPermissionVisibility(){
   const showCreateRack = currentRole === 'owner' || currentPerms.can_manage_spaces;
   const showScan = currentRole === 'owner' || currentPerms.can_scan || currentPerms.can_view_spaces;
   ['nav-go-users','dash-go-users'].forEach(id => $(id).style.display = showUsers ? '' : 'none');
-  $('nav-go-suppliers').style.display = showUsers ? '' : 'none';
+  ['nav-go-suppliers','dash-go-suppliers'].forEach(id => $(id).style.display = showUsers ? '' : 'none');
   ['nav-go-categories','dash-go-categories'].forEach(id => $(id).style.display = showCategories ? '' : 'none');
   ['nav-go-reports','dash-go-reports'].forEach(id => $(id).style.display = showReports ? '' : 'none');
   ['nav-go-rack','dash-go-rack'].forEach(id => $(id).style.display = showCreateRack ? '' : 'none');
   ['nav-go-scan','dash-go-scan'].forEach(id => $(id).style.display = showScan ? '' : 'none');
   $('activitylog-tab-btn').style.display = currentRole === 'owner' ? '' : 'none';
   renderWelcomePanel();
+}
+
+/* ===== لوحة التحكم: مؤشرات الأداء + آخر العمليات ===== */
+/* ===== لوحة الأوامر والبحث الشامل (Ctrl+K أو /) ===== */
+const CMDK_KIND = {
+  rack:     { ic:'ti-layout-grid',     group:'المساحات' },
+  part:     { ic:'ti-box',             group:'وحدات التأجير' },
+  supplier: { ic:'ti-truck-delivery',  group:'الموردين' },
+  category: { ic:'ti-tag',             group:'التصنيفات' },
+  branch:   { ic:'ti-building-store',  group:'الفروع' },
+  page:     { ic:'ti-arrow-left',      group:'الانتقال السريع' },
+};
+let cmdkItems = [], cmdkIndex = 0, cmdkTimer = null;
+
+function cmdkPages(){
+  const isOwner = currentRole === 'owner';
+  const canManage = isOwner || currentPerms.can_manage_spaces;
+  const canScan = isOwner || currentPerms.can_scan || currentPerms.can_view_spaces;
+  const canReports = isOwner || currentPerms.can_view_spaces || currentPerms.can_manage_spaces || currentPerms.can_scan;
+  const list = [{ kind:'page', title:'الرئيسية', subtitle:'لوحة التحكم', go:'dashboard-home' }];
+  if(canManage) list.push({ kind:'page', title:'إنشاء رف جديد', subtitle:'رف، ثلاجة، أو طبلية', go:'app' });
+  if(canScan) list.push({ kind:'page', title:'مسح الباركود', subtitle:'قراءة وتعديل الوحدات', go:'scan-app' });
+  if(canReports) list.push({ kind:'page', title:'تقارير المساحات', subtitle:'الخرائط والإحصائيات', go:'reports-app' });
+  if(canManage) list.push({ kind:'page', title:'إدارة التصنيفات', subtitle:'رئيسية وفرعية', go:'categories-app' });
+  if(isOwner) list.push({ kind:'page', title:'إدارة الموردين', subtitle:'العقود والبيانات الشهرية', go:'suppliers-app' });
+  if(isOwner) list.push({ kind:'page', title:'إدارة المستخدمين', subtitle:'الصلاحيات والحسابات', go:'users-app' });
+  list.push({ kind:'page', title:'الملف الشخصي', subtitle:'بياناتك وإعداداتك', go:'profile-page' });
+  return list;
+}
+
+function openCmdk(){
+  $('cmdk-overlay').style.display = 'block';
+  $('cmdk-input').value = '';
+  $('cmdk-input').focus();
+  cmdkRender(cmdkPages());
+}
+function closeCmdk(){ $('cmdk-overlay').style.display = 'none'; cmdkItems = []; }
+
+function cmdkRender(items){
+  cmdkItems = items; cmdkIndex = 0;
+  const box = $('cmdk-results');
+  if(!items.length){
+    box.innerHTML = '<div class="cmdk-empty"><i class="ti ti-search-off" style="font-size:26px; display:block; margin-bottom:8px;"></i>مفيش نتايج مطابقة</div>';
+    return;
+  }
+  let html = '', lastGroup = '';
+  items.forEach((it, i) => {
+    const meta = CMDK_KIND[it.kind] || CMDK_KIND.page;
+    if(meta.group !== lastGroup){ html += `<div class="cmdk-group">${meta.group}</div>`; lastGroup = meta.group; }
+    html += `
+      <div class="cmdk-item${i === 0 ? ' sel' : ''}" data-i="${i}">
+        <div class="ci-ic"><i class="ti ${meta.ic}"></i></div>
+        <div style="flex:1; min-width:0;">
+          <div class="ci-title">${esc(it.title)}</div>
+          <div class="ci-sub">${esc(it.subtitle || '')}</div>
+        </div>
+      </div>`;
+  });
+  box.innerHTML = html;
+  box.querySelectorAll('.cmdk-item').forEach(el => {
+    el.addEventListener('click', () => cmdkPick(+el.dataset.i));
+    el.addEventListener('mouseenter', () => cmdkHighlight(+el.dataset.i));
+  });
+}
+
+function cmdkHighlight(i){
+  cmdkIndex = i;
+  const els = $('cmdk-results').querySelectorAll('.cmdk-item');
+  els.forEach((el, idx) => el.classList.toggle('sel', idx === i));
+  const active = els[i];
+  if(active) active.scrollIntoView({ block:'nearest' });
+}
+
+async function cmdkPick(i){
+  const it = cmdkItems[i];
+  if(!it) return;
+  closeCmdk();
+  if(it.kind === 'page'){ goToSection(it.go); return; }
+  if(it.kind === 'rack'){ await goToSection('reports-app'); await showRackDetail(it.code); return; }
+  if(it.kind === 'part'){ await goToSection('scan-app'); detailsBackTarget='page-home'; detailsBackContext=null; await renderPartDetails(it.code); return; }
+  if(it.kind === 'supplier'){ await goToSection('suppliers-app'); openSupplierEditor(it.id); return; }
+  if(it.kind === 'category'){ goToSection('categories-app'); return; }
+  if(it.kind === 'branch'){ goToSection('reports-app'); return; }
+}
+
+$('cmdk-input').addEventListener('input', (e) => {
+  const q = e.target.value.trim();
+  clearTimeout(cmdkTimer);
+  if(!q){ cmdkRender(cmdkPages()); return; }
+  // فلترة الصفحات محليًا فورًا + بحث السيرفر بعد مهلة قصيرة
+  const pages = cmdkPages().filter(p => p.title.includes(q));
+  cmdkTimer = setTimeout(async () => {
+    const { data, error } = await sb.rpc('global_search', { p_query: q, p_limit: 20 });
+    if(error){ cmdkRender(pages); return; }
+    const results = (data || []).map(r => ({
+      kind: r.kind, id: r.id, code: r.code, title: r.title, subtitle: r.subtitle
+    }));
+    // ترتيب: النتائج الحقيقية الأول، والصفحات في الآخر
+    cmdkRender([...results, ...pages]);
+  }, 220);
+});
+
+$('cmdk-overlay').addEventListener('click', (e) => { if(e.target.id === 'cmdk-overlay') closeCmdk(); });
+$('sidebar-search').addEventListener('click', openCmdk);
+
+document.addEventListener('keydown', (e) => {
+  const open = $('cmdk-overlay').style.display === 'block';
+  const typing = ['INPUT','TEXTAREA','SELECT'].includes((e.target.tagName || '').toUpperCase());
+
+  // فتح: Ctrl+K / Cmd+K في أي وقت، أو "/" لو مش بتكتب
+  if((e.key === 'k' || e.key === 'K') && (e.ctrlKey || e.metaKey)){
+    e.preventDefault();
+    if($('app-shell').style.display === 'flex'){ open ? closeCmdk() : openCmdk(); }
+    return;
+  }
+  if(e.key === '/' && !typing && !open && $('app-shell').style.display === 'flex'){
+    e.preventDefault(); openCmdk(); return;
+  }
+  if(!open) return;
+
+  if(e.key === 'Escape'){ e.preventDefault(); closeCmdk(); }
+  else if(e.key === 'ArrowDown'){ e.preventDefault(); if(cmdkItems.length) cmdkHighlight((cmdkIndex + 1) % cmdkItems.length); }
+  else if(e.key === 'ArrowUp'){ e.preventDefault(); if(cmdkItems.length) cmdkHighlight((cmdkIndex - 1 + cmdkItems.length) % cmdkItems.length); }
+  else if(e.key === 'Enter'){ e.preventDefault(); cmdkPick(cmdkIndex); }
+}, true);
+
+/* ===== حالة فارغة موحّدة ===== */
+function emptyState({ icon, title, text, btnLabel, btnId }){
+  return `<div class="empty-state">
+    <div class="es-ic"><i class="ti ${icon}"></i></div>
+    <h3>${esc(title)}</h3>
+    <p>${esc(text)}</p>
+    ${btnId ? `<button class="btn small" id="${btnId}" style="width:auto; padding:10px 22px;"><i class="ti ti-plus"></i> ${esc(btnLabel)}</button>` : ''}
+  </div>`;
+}
+
+async function loadDashboard(){
+  const box = $('dash-kpis');
+  if(!box) return;
+
+  // تحميل هيكلي بدل شاشة فاضية
+  box.innerHTML = Array(6).fill('<div class="skeleton kpi-skeleton"></div>').join('');
+
+  const { data, error } = await sb.rpc('get_dashboard_kpis');
+  if(error || !data || !data.length){ box.innerHTML = ''; return; }
+  const k = data[0];
+  const isOwner = currentRole === 'owner';
+
+  const occColor = k.occupancy_pct >= 70 ? 'var(--success)' : k.occupancy_pct >= 30 ? 'var(--amber)' : 'var(--danger)';
+  const cards = [
+    { ic:'ti-layout-grid', val:k.total_racks, label:'إجمالي المساحات',
+      badge:`${k.shelf_count} رف · ${k.freezer_count} ثلاجة · ${k.pallet_count} طبلية`, go:'reports-app' },
+    { ic:'ti-box', val:k.total_units, label:'وحدات التأجير',
+      badge:`${k.occupied_units} مؤجّرة`, go:'reports-app' },
+    { ic:'ti-chart-pie', val:k.occupancy_pct + '%', label:'نسبة الإشغال', color:occColor, go:'reports-app' },
+    { ic:'ti-truck-delivery', val:k.total_suppliers, label:'الموردين',
+      badge:`${k.active_suppliers} لهم مساحة`, go: isOwner ? 'suppliers-app' : null },
+  ];
+  if(k.expiring_contracts > 0){
+    cards.push({ ic:'ti-alarm', val:k.expiring_contracts, label:'عقود تنتهي خلال 30 يوم',
+      color:'var(--amber)', warn:true, go: isOwner ? 'suppliers-app' : null });
+  }
+  if(isOwner){
+    cards.push({ ic:'ti-users', val:k.total_users, label:'المستخدمين',
+      badge: k.pending_users > 0 ? `${k.pending_users} بانتظار الموافقة` : null,
+      warn: k.pending_users > 0, go:'users-app' });
+  }
+
+  box.innerHTML = cards.map((c, i) => `
+    <div class="kpi-card${c.go ? ' clickable' : ''}" ${c.go ? `data-go="${c.go}"` : ''}>
+      <div class="kc-top">
+        <div class="kc-ic" ${c.color ? `style="background:${c.warn ? 'var(--amber-dim)' : 'var(--accent-dim)'}; color:${c.color};"` : ''}>
+          <i class="ti ${c.ic}"></i>
+        </div>
+        ${c.badge ? `<span class="kc-badge" style="background:${c.warn ? 'var(--amber-dim)' : 'var(--panel-2)'}; color:${c.warn ? 'var(--amber)' : 'var(--muted)'};">${esc(c.badge)}</span>` : ''}
+      </div>
+      <div class="kc-value" ${c.color ? `style="color:${c.color};"` : ''}>${esc(c.val)}</div>
+      <div class="kc-label">${esc(c.label)}</div>
+    </div>`).join('');
+
+  box.querySelectorAll('[data-go]').forEach(el =>
+    el.addEventListener('click', () => goToSection(el.dataset.go)));
+
+  if(isOwner) loadDashboardActivity();
+}
+
+async function loadDashboardActivity(){
+  const wrap = $('dash-activity-wrap'), box = $('dash-activity');
+  if(!wrap || !box) return;
+  const { data, error } = await sb.rpc('get_activity_log', { p_page: 1, p_page_size: 5 });
+  if(error || !data || !data.length){ wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+
+  const META = {
+    create:{ ic:'ti-plus', c:'var(--success)', t:'إنشاء' },
+    edit:{ ic:'ti-pencil', c:'var(--amber)', t:'تعديل' },
+    delete:{ ic:'ti-trash', c:'var(--danger)', t:'حذف' },
+    end:{ ic:'ti-flag', c:'var(--muted)', t:'إنهاء' }
+  };
+  const ago = (d) => {
+    const s = (Date.now() - new Date(d)) / 1000;
+    if(s < 60) return 'من ثواني';
+    if(s < 3600) return `من ${Math.floor(s/60)} دقيقة`;
+    if(s < 86400) return `من ${Math.floor(s/3600)} ساعة`;
+    return `من ${Math.floor(s/86400)} يوم`;
+  };
+
+  box.innerHTML = data.map((h, i) => {
+    const m = META[h.action] || { ic:'ti-point', c:'var(--muted)', t:h.action };
+    return `
+    <div style="display:flex; align-items:center; gap:11px; padding:11px 0; ${i < data.length-1 ? 'border-bottom:1px solid var(--border);' : ''}">
+      <div style="width:30px; height:30px; border-radius:9px; background:var(--panel-2); color:${m.c};
+        display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+        <i class="ti ${m.ic}" style="font-size:15px;"></i>
+      </div>
+      <div style="flex:1; min-width:0;">
+        <div style="font-size:12.5px; font-weight:600;">
+          ${m.t} <span style="font-family:var(--font-mono); direction:ltr;">${esc(h.rack_code || '—')}</span>
+        </div>
+        <div style="font-size:11px; color:var(--muted);">${esc(h.changed_by_name)}</div>
+      </div>
+      <div style="font-size:11px; color:var(--muted); flex-shrink:0;">${ago(h.changed_at)}</div>
+    </div>`;
+  }).join('');
 }
 
 function renderWelcomePanel(){
@@ -1470,27 +1883,104 @@ async function enterApp(){
   $('app-shell').style.display = 'flex';
   applyPermissionVisibility();
   showSection('dashboard-home');
+  loadDashboard();
   checkExpiringContracts();
 }
+
+/* ===== مركز الإشعارات ===== */
+let notifList = [];
+const NOTIF_READ_KEY = 'masaha-read-notifs';
+const notifRead = () => { try{ return JSON.parse(localStorage.getItem(NOTIF_READ_KEY) || '[]'); }catch(e){ return []; } };
+const notifMarkRead = (ids) => localStorage.setItem(NOTIF_READ_KEY, JSON.stringify([...new Set([...notifRead(), ...ids])]));
 
 async function checkExpiringContracts(){
   const { data, error } = await sb.rpc('get_expiring_contracts', { p_days: 30 });
   if(error || !data){ return; }
-  const countEl = $('notif-count');
-  if(!data.length){ countEl.style.display = 'none'; $('notif-panel').style.display = 'none'; return; }
-  countEl.textContent = data.length;
-  countEl.style.display = 'flex';
-  $('notif-panel').innerHTML = data.map(c => `
-    <div style="padding:8px 10px; border-bottom:1px solid var(--border); font-size:12px; cursor:pointer;" class="notif-item" data-rack="${esc(c.rack_code)}">
-      <div style="font-weight:700;">${esc(c.supplier_name)}</div>
-      <div style="color:var(--muted); margin-top:2px;">
-        <span style="direction:ltr; font-family:var(--font-mono);">${esc(c.rack_code)}</span> —
-        العقد بينتهي خلال <b style="color:${c.days_remaining <= 7 ? 'var(--danger)' : 'var(--amber)'};">${c.days_remaining} يوم</b>
-      </div>
-    </div>`).join('');
-  document.querySelectorAll('.notif-item').forEach(item => {
+
+  // بناء قائمة الإشعارات مع التصنيف حسب الإلحاح
+  notifList = data.map(c => {
+    const d = Number(c.days_remaining);
+    const sev = d <= 7 ? 'urgent' : d <= 15 ? 'warn' : 'info';
+    return {
+      key: `contract-${c.supplier_id}-${c.rack_code}`,
+      sev,
+      icon: sev === 'urgent' ? 'ti-alert-triangle' : 'ti-clock-hour-4',
+      title: c.supplier_name,
+      body: `العقد بينتهي خلال ${d} يوم`,
+      rack: c.rack_code,
+      days: d
+    };
+  }).sort((a,b) => a.days - b.days);
+
+  renderNotifCenter();
+}
+
+function renderNotifCenter(){
+  const countEl = $('notif-count'), panel = $('notif-panel');
+  if(!countEl || !panel) return;
+
+  const read = notifRead();
+  const unread = notifList.filter(n => !read.includes(n.key));
+
+  if(!notifList.length){
+    countEl.style.display = 'none';
+    panel.innerHTML = `<div class="empty-state" style="padding:22px 12px;">
+      <div class="es-ic" style="width:46px; height:46px; font-size:21px;"><i class="ti ti-bell-check"></i></div>
+      <h3 style="font-size:13px;">مفيش تنبيهات</h3>
+      <p style="font-size:11.5px; margin-bottom:0;">كل العقود سارية ومفيش حاجة محتاجة انتباهك.</p>
+    </div>`;
+    return;
+  }
+
+  countEl.textContent = unread.length || '';
+  countEl.style.display = unread.length ? 'flex' : 'none';
+
+  const SEV = {
+    urgent: { c:'var(--danger)', bg:'rgba(239,68,68,.12)', label:'عاجل' },
+    warn:   { c:'var(--amber)',  bg:'var(--amber-dim)',    label:'قريب' },
+    info:   { c:'var(--accent)', bg:'var(--accent-dim)',   label:'تنبيه' },
+  };
+
+  panel.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px 9px; border-bottom:1px solid var(--border);">
+      <span style="font-size:12px; font-weight:700;">التنبيهات <span style="color:var(--muted); font-weight:500;">(${notifList.length})</span></span>
+      ${unread.length ? '<a id="notif-mark-all" style="font-size:11px; color:var(--accent); cursor:pointer;">تعليم الكل كمقروء</a>' : ''}
+    </div>
+    ${notifList.map(n => {
+      const s = SEV[n.sev];
+      const isRead = read.includes(n.key);
+      return `
+      <div class="notif-item" data-rack="${esc(n.rack)}" data-key="${esc(n.key)}"
+        style="display:flex; gap:10px; padding:10px 8px; border-bottom:1px solid var(--border); cursor:pointer; ${isRead ? 'opacity:.55;' : ''}">
+        <div style="width:28px; height:28px; border-radius:8px; background:${s.bg}; color:${s.c};
+          display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+          <i class="ti ${n.icon}" style="font-size:14px;"></i>
+        </div>
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:12.5px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(n.title)}</span>
+            <span style="font-size:9.5px; font-weight:700; padding:1px 7px; border-radius:20px; background:${s.bg}; color:${s.c}; flex-shrink:0;">${s.label}</span>
+          </div>
+          <div style="font-size:11px; color:var(--muted); margin-top:2px;">
+            <span style="direction:ltr; font-family:var(--font-mono);">${esc(n.rack)}</span> — ${esc(n.body)}
+          </div>
+        </div>
+        ${isRead ? '' : `<span style="width:7px; height:7px; border-radius:50%; background:${s.c}; align-self:center; flex-shrink:0;"></span>`}
+      </div>`;
+    }).join('')}`;
+
+  const markAll = $('notif-mark-all');
+  if(markAll) markAll.addEventListener('click', (e) => {
+    e.stopPropagation();
+    notifMarkRead(notifList.map(n => n.key));
+    renderNotifCenter();
+  });
+
+  panel.querySelectorAll('.notif-item').forEach(item => {
     item.addEventListener('click', async () => {
-      $('notif-panel').style.display = 'none';
+      notifMarkRead([item.dataset.key]);
+      panel.style.display = 'none';
+      renderNotifCenter();
       await goToSection('reports-app');
       await showRackDetail(item.dataset.rack);
     });
@@ -1504,12 +1994,18 @@ $('notif-bell').addEventListener('click', () => {
 $('pending-logout').addEventListener('click', async () => { await sb.auth.signOut(); location.reload(); });
 
 document.querySelectorAll('.nav-item').forEach(el => {
+  el.setAttribute('role', 'button');
+  el.setAttribute('tabindex', '0');
   el.addEventListener('click', () => goToSection(el.dataset.section));
+  el.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); goToSection(el.dataset.section); }
+  });
 });
 $('dash-go-rack').addEventListener('click', () => goToSection('app'));
 $('dash-go-scan').addEventListener('click', () => goToSection('scan-app'));
 $('dash-go-reports').addEventListener('click', () => goToSection('reports-app'));
 $('dash-go-categories').addEventListener('click', () => goToSection('categories-app'));
+$('dash-go-suppliers').addEventListener('click', () => goToSection('suppliers-app'));
 $('dash-go-users').addEventListener('click', () => goToSection('users-app'));
 $('mobile-nav-toggle').addEventListener('click', () => $('sidebar').classList.toggle('open'));
 
@@ -1591,11 +2087,13 @@ $('add-supplier-btn').addEventListener('click', () => openSupplierEditor(null));
 const BULK_COLUMNS = [
   { key:'supplier_code', label:'كود المورد', required:true },
   { key:'sales_revenue', label:'قيمة المبيعات' },
+  { key:'sales_returns', label:'مرتجعات المبيعات' },
   { key:'qty_sold', label:'الكمية المباعة' },
-  { key:'purchase_net_cost', label:'صافي المشتريات' },
+  { key:'purchase_net_cost', label:'إجمالي المشتريات' },
+  { key:'purchase_returns', label:'مرتجعات المشتريات' },
   { key:'rent_due', label:'الإيجار الثابت المستحق' },
   { key:'rent_paid', label:'الإيجار الثابت المدفوع' },
-  { key:'pct_rent_due', label:'إيجار النسبة المستحق (يتحسب تلقائي لو فاضي)' },
+  { key:'pct_rent_due', label:'إيجار النسبة (يتحسب تلقائي لو فاضي)' },
   { key:'collected_invoice_discount', label:'خصم على الفاتورة' },
   { key:'collected_free_goods', label:'بضاعة مجانية' },
   { key:'collected_credit_notes', label:'إشعارات خصم' },
@@ -1627,16 +2125,23 @@ function parseCSV(text){
   return { headers, rows };
 }
 
+const IMPORT_FILES = [
+  { id:'sales',    label:'المبيعات',          icon:'ti-shopping-cart', field:'sales_revenue',            extra:'qty_sold' },
+  { id:'purchase', label:'المشتريات',         icon:'ti-package-import', field:'purchase_net_cost' },
+  { id:'returns',  label:'المرتجعات',         icon:'ti-arrow-back-up',  field:'purchase_returns' },
+  { id:'credit',   label:'الإشعارات المدينة', icon:'ti-receipt',        field:'collected_credit_notes' },
+];
+
 $('bulk-import-btn').addEventListener('click', () => {
   const now = new Date();
   openModal(`
     <div style="padding:20px;">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
-        <div style="font-weight:700;">رفع البيانات الشهرية دفعة واحدة</div>
+        <div style="font-weight:700;">رفع البيانات الشهرية</div>
         <a id="bi-close" style="color:var(--muted); cursor:pointer; font-size:18px; line-height:1;">✕</a>
       </div>
       <p style="font-size:12px; color:var(--muted); margin-bottom:14px;">
-        ارفع ملف CSV فيه بيانات كل الموردين للشهر ده. الربط بيتم بـ<b>كود المورد</b>.
+        ارفع ملفاتك زي ما هي من نظامك — النظام هيجمّع السطور التفصيلية ويدمج الملفات تلقائيًا بـ<b>كود المورد</b>.
       </p>
 
       <div class="grid2">
@@ -1646,61 +2151,107 @@ $('bulk-import-btn').addEventListener('click', () => {
         <div class="field"><label>السنة</label><input type="number" id="bi-year" value="${now.getFullYear()}" style="direction:ltr;"></div>
       </div>
 
-      <div style="background:var(--panel-2); border-radius:10px; padding:12px; margin-bottom:14px;">
-        <div style="font-size:12px; font-weight:700; margin-bottom:7px;">أعمدة الملف المتوقعة</div>
-        <div style="font-size:11px; color:var(--muted); line-height:1.9;">
-          ${BULK_COLUMNS.map(c => `<code style="background:var(--panel); padding:2px 6px; border-radius:4px; direction:ltr; display:inline-block;">${c.key}</code>${c.required ? ' <b style="color:var(--danger);">*</b>' : ''}`).join(' · ')}
-        </div>
-        <button class="btn tiny ghost" id="bi-template" style="margin-top:10px;"><i class="ti ti-download"></i> نزّل ملف نموذجي</button>
-      </div>
+      <p style="font-size:11.5px; color:var(--muted); margin-bottom:10px;">
+        كل ملف لازم يحتوي على عمود <code style="background:var(--panel-2); padding:2px 6px; border-radius:4px; direction:ltr; display:inline-block;">supplier_code</code>
+        + عمود القيمة الخاص بيه. ارفع اللي متوفر عندك بس.
+      </p>
 
-      <div class="field"><label>ملف CSV</label><input type="file" id="bi-file" accept=".csv,text/csv"></div>
+      ${IMPORT_FILES.map(f => `
+        <div style="background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:9px;">
+          <div style="display:flex; align-items:center; gap:8px; font-size:13px; font-weight:600; margin-bottom:8px;">
+            <i class="ti ${f.icon}" style="color:var(--accent);"></i> ملف ${f.label}
+            <span style="font-size:10.5px; color:var(--muted); font-weight:500; margin-inline-start:auto;">
+              العمود المتوقع: <code style="direction:ltr;">${f.field}</code>
+            </span>
+          </div>
+          <input type="file" id="bi-file-${f.id}" accept=".csv,text/csv">
+          <div id="bi-stat-${f.id}" style="font-size:11.5px; margin-top:7px;"></div>
+        </div>`).join('')}
+
+      <button class="btn tiny ghost" id="bi-template" style="margin:4px 0 12px;"><i class="ti ti-download"></i> نزّل ملف نموذجي</button>
+
       <div id="bi-preview"></div>
-      <button class="btn small" id="bi-upload" disabled>رفع البيانات</button>
+      <button class="btn small" id="bi-upload" disabled>رفع ودمج البيانات</button>
       <div class="err" id="bi-err"></div>
     </div>`);
 
+  // بيانات كل ملف بعد التجميع: Map<supplier_code, {field: value}>
+  const fileData = {};
   let parsedRows = [];
+
+  function mergeAndPreview(){
+    const merged = new Map();
+    IMPORT_FILES.forEach(f => {
+      const d = fileData[f.id];
+      if(!d) return;
+      d.forEach((vals, code) => {
+        if(!merged.has(code)) merged.set(code, { supplier_code: code });
+        Object.assign(merged.get(code), vals);
+      });
+    });
+    parsedRows = Array.from(merged.values());
+    const loaded = IMPORT_FILES.filter(f => fileData[f.id]);
+    $('bi-preview').innerHTML = parsedRows.length ? `
+      <div style="background:var(--accent-dim); border:1px solid var(--accent); border-radius:9px; padding:12px; font-size:12.5px; margin-bottom:12px;">
+        <div style="font-weight:700; color:var(--accent-hover);">
+          <i class="ti ti-check"></i> جاهز للرفع: ${parsedRows.length} مورد
+        </div>
+        <div style="color:var(--muted); margin-top:5px;">
+          الملفات المحمّلة: ${loaded.map(f => esc(f.label)).join('، ')}
+        </div>
+      </div>` : '';
+    $('bi-upload').disabled = parsedRows.length === 0;
+  }
+
+  IMPORT_FILES.forEach(f => {
+    $(`bi-file-${f.id}`).addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      const stat = $(`bi-stat-${f.id}`);
+      if(!file){ delete fileData[f.id]; stat.innerHTML = ''; mergeAndPreview(); return; }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const { headers, rows } = parseCSV(reader.result);
+        if(!headers.includes('supplier_code')){
+          stat.innerHTML = '<span style="color:var(--danger);">✕ الملف مفيهوش عمود supplier_code</span>';
+          delete fileData[f.id]; mergeAndPreview(); return;
+        }
+        const valueCols = [f.field].concat(f.extra ? [f.extra] : []).filter(c => headers.includes(c));
+        if(!valueCols.length){
+          stat.innerHTML = `<span style="color:var(--danger);">✕ الملف مفيهوش عمود <code>${f.field}</code></span>`;
+          delete fileData[f.id]; mergeAndPreview(); return;
+        }
+        const agg = new Map();
+        let lines = 0;
+        rows.forEach(r => {
+          const code = parseInt(String(r.supplier_code || '').trim());
+          if(isNaN(code)) return;
+          lines++;
+          if(!agg.has(code)) agg.set(code, {});
+          const acc = agg.get(code);
+          valueCols.forEach(col => {
+            const raw = String(r[col] ?? '').trim().replace(/,/g, '');
+            if(raw !== '' && !isNaN(Number(raw))) acc[col] = (acc[col] || 0) + Number(raw);
+          });
+        });
+        fileData[f.id] = agg;
+        const isDetailed = lines > agg.size;
+        stat.innerHTML = `<span style="color:var(--success);">✓ ${lines} سطر${isDetailed ? ` → اتجمّعوا لـ ${agg.size} مورد` : ` (${agg.size} مورد)`}</span>`;
+        mergeAndPreview();
+      };
+      reader.readAsText(file, 'utf-8');
+    });
+  });
 
   $('bi-close').addEventListener('click', closeModal);
 
   $('bi-template').addEventListener('click', () => {
     const header = BULK_COLUMNS.map(c => c.key).join(',');
-    const sample = ['1001','1500.500','320','8200.000','250.000','250.000','','120.000','60.000','30.000','0','0'].join(',');
+    const sample = ['1001','1500.500','45.000','320','8200.000','150.000','250.000','250.000','','120.000','60.000','30.000','0','0'].join(',');
     const csv = '\uFEFF' + header + '\n' + sample + '\n';
     const link = document.createElement('a');
     link.href = URL.createObjectURL(new Blob([csv], { type:'text/csv;charset=utf-8;' }));
     link.download = 'نموذج-بيانات-شهرية.csv';
     link.click();
-  });
-
-  $('bi-file').addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if(!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const { headers, rows } = parseCSV(reader.result);
-      if(!headers.includes('supplier_code')){
-        $('bi-preview').innerHTML = '<p style="color:var(--danger); font-size:12px;">الملف لازم يحتوي على عمود <code>supplier_code</code>.</p>';
-        $('bi-upload').disabled = true; return;
-      }
-      parsedRows = rows.filter(r => String(r.supplier_code || '').trim() !== '').map(r => {
-        const o = { supplier_code: parseInt(r.supplier_code) };
-        BULK_COLUMNS.slice(1).forEach(c => {
-          const raw = String(r[c.key] ?? '').trim();
-          if(raw !== '') o[c.key] = Number(raw);
-        });
-        return o;
-      });
-      const unknown = headers.filter(h => !BULK_COLUMNS.some(c => c.key === h) && h);
-      $('bi-preview').innerHTML = `
-        <div style="background:var(--panel-2); border-radius:9px; padding:11px; font-size:12px; margin-bottom:12px;">
-          <div>✅ اتقرا <b>${parsedRows.length}</b> صف من الملف.</div>
-          ${unknown.length ? `<div style="color:var(--amber); margin-top:5px;">أعمدة غير معروفة هتتجاهل: ${esc(unknown.join('، '))}</div>` : ''}
-        </div>`;
-      $('bi-upload').disabled = parsedRows.length === 0;
-    };
-    reader.readAsText(file, 'utf-8');
   });
 
   $('bi-upload').addEventListener('click', async () => {
@@ -1711,7 +2262,7 @@ $('bulk-import-btn').addEventListener('click', () => {
       p_month: Number($('bi-month').value),
       p_rows: parsedRows
     });
-    $('bi-upload').disabled = false; $('bi-upload').textContent = 'رفع البيانات';
+    $('bi-upload').disabled = false; $('bi-upload').textContent = 'رفع ودمج البيانات';
     if(error){ $('bi-err').textContent = error.message; $('bi-err').style.display = 'block'; return; }
     const res = Array.isArray(data) ? data[0] : data;
     const errs = res.errors || [];
@@ -1728,6 +2279,7 @@ $('bulk-import-btn').addEventListener('click', () => {
   });
 });
 
+
 async function loadSuppliersList(){
   const box = $('suppliers-list');
   box.innerHTML = '<p style="color:var(--muted); font-size:13px;">جاري التحميل...</p>';
@@ -1736,7 +2288,13 @@ async function loadSuppliersList(){
   });
   if(error){ box.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+esc(error.message)+'</p>'; return; }
   if(!data || !data.length){
-    box.innerHTML = `<p style="color:var(--muted); font-size:13px;">${supplierSearch ? 'مفيش نتايج للبحث ده.' : 'مفيش موردين لسه.'}</p>`;
+    box.innerHTML = supplierSearch
+      ? emptyState({ icon:'ti-search-off', title:'مفيش نتايج', text:`مفيش مورد مطابق لـ "${supplierSearch}". جرّب كلمة تانية أو كود المورد.` })
+      : emptyState({ icon:'ti-truck-delivery', title:'مفيش موردين لسه',
+          text:'ابدأ بإضافة أول مورد، أو ارفع بيانات الموردين دفعة واحدة من ملف.',
+          btnLabel:'إضافة أول مورد', btnId:'es-add-supplier' });
+    const esBtn = $('es-add-supplier');
+    if(esBtn) esBtn.addEventListener('click', () => openSupplierEditor(null));
     return;
   }
 
@@ -1792,7 +2350,7 @@ async function loadSuppliersList(){
 
 const MONTH_NAMES = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 
-async function loadSupplierMonthly(supplierId, pctRate){
+async function loadSupplierMonthly(supplierId, pctRate, pctBasis){
   const box = $('se-monthly-box');
   if(!box) return;
   const { data, error } = await sb.rpc('get_supplier_monthly', { p_supplier_id: supplierId });
@@ -1828,17 +2386,17 @@ async function loadSupplierMonthly(supplierId, pctRate){
 
   box.querySelectorAll('.sm-edit').forEach(b => b.addEventListener('click', () => {
     const rec = data.find(m => m.id === b.dataset.id);
-    openMonthlyEditor(supplierId, rec, pctRate);
+    openMonthlyEditor(supplierId, rec, pctRate, pctBasis);
   }));
   box.querySelectorAll('.sm-del').forEach(b => b.addEventListener('click', async () => {
     const { error } = await sb.rpc('delete_supplier_monthly', { p_id: b.dataset.id });
     if(error){ showToast('تعذّر الحذف: ' + error.message, true); return; }
     showToast('تم حذف السجل الشهري.');
-    await loadSupplierMonthly(supplierId, pctRate);
+    await loadSupplierMonthly(supplierId, pctRate, pctBasis);
   }));
 }
 
-function openMonthlyEditor(supplierId, rec, pctRate){
+function openMonthlyEditor(supplierId, rec, pctRate, pctBasis){
   const isNew = !rec;
   const now = new Date();
   const v = (x) => (x === null || x === undefined) ? '' : x;
@@ -1863,8 +2421,10 @@ function openMonthlyEditor(supplierId, rec, pctRate){
       <div style="font-size:12px; font-weight:700; color:var(--accent); margin:14px 0 8px;">المبيعات والمشتريات</div>
       <div class="grid2">
         <div class="field"><label>قيمة المبيعات (د.ك)</label><input type="number" step="0.001" id="sm-sales" value="${v(rec?.sales_revenue)}" style="direction:ltr;"></div>
+        <div class="field"><label>مرتجعات المبيعات (د.ك)</label><input type="number" step="0.001" id="sm-sreturns" value="${v(rec?.sales_returns)}" style="direction:ltr;"></div>
         <div class="field"><label>الكمية المباعة</label><input type="number" step="1" id="sm-qty" value="${v(rec?.qty_sold)}" style="direction:ltr;"></div>
-        <div class="field"><label>صافي المشتريات (د.ك)</label><input type="number" step="0.001" id="sm-purchase" value="${v(rec?.purchase_net_cost)}" style="direction:ltr;"></div>
+        <div class="field"><label>إجمالي المشتريات (د.ك)</label><input type="number" step="0.001" id="sm-purchase" value="${v(rec?.purchase_net_cost)}" style="direction:ltr;"></div>
+        <div class="field"><label>مرتجعات المشتريات (د.ك)</label><input type="number" step="0.001" id="sm-preturns" value="${v(rec?.purchase_returns)}" style="direction:ltr;"></div>
       </div>
 
       <div style="font-size:12px; font-weight:700; color:var(--accent); margin:14px 0 8px;">الإيجار الثابت</div>
@@ -1917,8 +2477,10 @@ function openMonthlyEditor(supplierId, rec, pctRate){
   if(rate > 0 && $('sm-calc-pct')){
     $('sm-calc-pct').addEventListener('click', () => {
       const purchase = Number($('sm-purchase').value || 0);
-      if(!purchase){ showToast('اكتب صافي المشتريات الأول.', true); return; }
-      $('sm-pctdue').value = (purchase * rate / 100).toFixed(3);
+      const preturns = Number($('sm-preturns').value || 0);
+      if(!purchase){ showToast('اكتب إجمالي المشتريات الأول.', true); return; }
+      const base = (pctBasis === 'net') ? (purchase - preturns) : purchase;
+      $('sm-pctdue').value = (base * rate / 100).toFixed(3);
       updatePctSummary();
     });
   }
@@ -1931,6 +2493,7 @@ function openMonthlyEditor(supplierId, rec, pctRate){
       p_supplier_id: supplierId,
       p_year: Number($('sm-year').value), p_month: Number($('sm-month').value),
       p_sales_revenue: num('sm-sales'), p_qty_sold: num('sm-qty'), p_purchase_net_cost: num('sm-purchase'),
+      p_sales_returns: num('sm-sreturns'), p_purchase_returns: num('sm-preturns'),
       p_rent_due: num('sm-rentdue'), p_rent_paid: num('sm-rentpaid'),
       p_pct_rent_due: num('sm-pctdue'),
       p_collected_invoice_discount: num('sm-c-invoice'),
@@ -1998,7 +2561,15 @@ async function openSupplierEditor(supplierId){
           <input type="checkbox" id="se-has-pct" ${s.has_pct_rent ? 'checked' : ''}> إيجار كنسبة من المشتريات
         </label>
         <div id="se-pct-box" style="display:${s.has_pct_rent ? 'block' : 'none'}; margin-top:10px;">
-          <div class="field" style="margin-bottom:0;"><label>النسبة (%)</label><input type="number" step="0.01" id="se-pct-rate" value="${v(s.pct_rent_rate)}" style="direction:ltr;"></div>
+          <div class="grid2">
+            <div class="field" style="margin-bottom:0;"><label>النسبة (%)</label><input type="number" step="0.01" id="se-pct-rate" value="${v(s.pct_rent_rate)}" style="direction:ltr;"></div>
+            <div class="field" style="margin-bottom:0;"><label>أساس الحساب</label>
+              <select id="se-pct-basis">
+                <option value="gross" ${(s.pct_basis || 'gross') === 'gross' ? 'selected' : ''}>إجمالي المشتريات (قبل المرتجعات)</option>
+                <option value="net" ${s.pct_basis === 'net' ? 'selected' : ''}>صافي المشتريات (بعد خصم المرتجعات)</option>
+              </select>
+            </div>
+          </div>
           <p style="font-size:11px; color:var(--muted); margin-top:6px;">بتتحصّل شهريًا بـ3 طرق: خصم على الفاتورة، بضاعة مجانية، إشعارات خصم.</p>
         </div>
       </div>
@@ -2029,8 +2600,8 @@ async function openSupplierEditor(supplierId){
   });
 
   if(!isNew){
-    loadSupplierMonthly(supplierId, s.pct_rent_rate);
-    $('se-add-month').addEventListener('click', () => openMonthlyEditor(supplierId, null, s.pct_rent_rate));
+    loadSupplierMonthly(supplierId, s.pct_rent_rate, s.pct_basis);
+    $('se-add-month').addEventListener('click', () => openMonthlyEditor(supplierId, null, s.pct_rent_rate, s.pct_basis));
   }
 
   $('se-save').addEventListener('click', async () => {
@@ -2050,7 +2621,8 @@ async function openSupplierEditor(supplierId){
       p_fixed_rent_amount: num('se-fixed-amt'),
       p_fixed_rent_period: $('se-fixed-period').value,
       p_has_pct_rent: $('se-has-pct').checked,
-      p_pct_rent_rate: num('se-pct-rate')
+      p_pct_rent_rate: num('se-pct-rate'),
+      p_pct_basis: $('se-pct-basis').value
     });
     $('se-save').disabled = false;
     if(error){ $('se-err').textContent = error.message; $('se-err').style.display = 'block'; return; }
@@ -2147,7 +2719,14 @@ async function loadUsersList(){
     sb.from('branches').select('*').order('name')
   ]);
   if(error){ $('users-list').innerHTML = '<p style="color:var(--danger); font-size:13px;">تعذّر التحميل: ' + error.message + '</p>'; return; }
-  if(!data || !data.length){ $('users-list').innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش مستخدمين.</p>'; return; }
+  if(!data || !data.length){
+    $('users-list').innerHTML = emptyState({ icon:'ti-users', title:'مفيش مستخدمين لسه',
+      text:'أنشئ أول حساب مستخدم وحدّد صلاحياته من هنا.',
+      btnLabel:'إنشاء أول مستخدم', btnId:'es-add-user' });
+    const b = $('es-add-user');
+    if(b) b.addEventListener('click', () => $('create-user-btn').click());
+    return;
+  }
 
   function permChips(u){
     let chips = '';
@@ -2324,7 +2903,11 @@ async function loadCategoriesAdmin(){
   ]);
   if(error){ $('cat-list').innerHTML = '<p style="color:var(--danger); font-size:13px;">تعذّر التحميل.</p>'; return; }
 
-  if(!cats || !cats.length){ $('cat-list').innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش تصنيفات لسه — ضيف واحد فوق.</p>'; return; }
+  if(!cats || !cats.length){
+    $('cat-list').innerHTML = emptyState({ icon:'ti-tag', title:'مفيش تصنيفات لسه',
+      text:'التصنيفات بتساعدك تنظّم منتجات الأرفف وتطلّع تقارير أدق. ضيف أول تصنيف من الخانة اللي فوق.' });
+    return;
+  }
 
   $('cat-list').innerHTML = cats.map(c => {
     const catSubs = (subs || []).filter(s => s.category_id === c.id);
@@ -2384,7 +2967,8 @@ function destroyChart(id){
   if(chartInstances[id]){ chartInstances[id].destroy(); delete chartInstances[id]; }
 }
 
-function renderDonutChart(canvasId, items){
+async function renderDonutChart(canvasId, items){
+  await LIB.chart();
   destroyChart(canvasId);
   const ctx = document.getElementById(canvasId);
   if(!ctx) return;
@@ -2401,7 +2985,8 @@ function renderDonutChart(canvasId, items){
   });
 }
 
-function renderBarChart(canvasId, items){
+async function renderBarChart(canvasId, items){
+  await LIB.chart();
   destroyChart(canvasId);
   const ctx = document.getElementById(canvasId);
   if(!ctx) return;
@@ -2471,11 +3056,13 @@ $('export-csv-btn').addEventListener('click', () => {
 
 $('export-pdf-btn').addEventListener('click', async () => {
   $('export-menu').style.display = 'none';
-  if(typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined'){
-    showToast('تعذّر تحميل أداة التصدير — تأكد من الاتصال بالإنترنت.', true); return;
-  }
   const target = $('report-content');
   showToast('جاري تجهيز الـ PDF...');
+  try{
+    await Promise.all([LIB.canvas(), LIB.pdf()]);
+  }catch(e){
+    showToast('تعذّر تحميل أداة التصدير — تأكد من الاتصال بالإنترنت.', true); return;
+  }
   const canvas = await html2canvas(target, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
   const { jsPDF } = window.jspdf;
   const orientation = canvas.width > canvas.height ? 'landscape' : 'portrait';
@@ -2544,7 +3131,14 @@ if(tab === 'map'){
     sb.rpc('report_endcaps_map')
   ]);
   if(error){ el.innerHTML = '<p style="color:var(--danger); font-size:13px;">'+error.message+'</p>'; return; }
-  if(!data || !data.length){ el.innerHTML = '<p style="color:var(--muted); font-size:13px;">مفيش أرفف متسجّلة لسه.</p>'; return; }
+  if(!data || !data.length){
+    el.innerHTML = emptyState({ icon:'ti-layout-grid', title:'مفيش أرفف متسجّلة لسه',
+      text:'ابدأ بإنشاء أول رف أو ثلاجة أو طبلية، وهتلاقي كل التقارير بتشتغل تلقائيًا.',
+      btnLabel:'إنشاء أول رف', btnId:'es-add-rack' });
+    const b = $('es-add-rack');
+    if(b) b.addEventListener('click', () => goToSection('app'));
+    return;
+  }
   await renderMapLevel(data, endcapRes.data || []);
   return;
 }
@@ -3431,7 +4025,12 @@ function applyLocmapZoom(){
 async function locmapExportMap(kind){
   const inner = $('locmap-inner');
   if(!inner) return;
-  if(typeof html2canvas === 'undefined'){ showToast('تعذّر تحميل أداة التصدير — تأكد من الاتصال بالإنترنت.', true); return; }
+  try{
+    await LIB.canvas();
+    if(kind !== 'png') await LIB.pdf();
+  }catch(e){
+    showToast('تعذّر تحميل أداة التصدير — تأكد من الاتصال بالإنترنت.', true); return;
+  }
 
   const btn = $('locmap-export-btn');
   const originalIcon = btn ? btn.innerHTML : '';
@@ -3458,7 +4057,6 @@ async function locmapExportMap(kind){
       link.href = canvas.toDataURL('image/png');
       link.click();
     } else {
-      if(typeof window.jspdf === 'undefined'){ showToast('تعذّر تحميل أداة PDF.', true); return; }
       const { jsPDF } = window.jspdf;
       const orientation = canvas.width >= canvas.height ? 'l' : 'p';
       const pdf = new jsPDF({ orientation, unit: 'pt', format: [canvas.width, canvas.height] });
@@ -4972,8 +5570,9 @@ $('details-back-btn').addEventListener('click', () => {
 $('go-scan').addEventListener('click', () => { scanShowPage('page-scan'); startScanner(); });
 $('go-manual').addEventListener('click', () => { scanShowPage('page-scan'); $('manual-code').focus(); });
 
-function startScanner(){
+async function startScanner(){
   try{
+    await LIB.qrScan();
     qrScanner = new Html5Qrcode('qr-reader');
     qrScanner.start(
       { facingMode: 'environment' },
@@ -5445,6 +6044,7 @@ async function buildLabelsHTML(items){
     const kind = it.kind || 'level';
     const meta = KIND_META[kind];
     const qrSize = kind === 'rack' ? 300 : kind === 'column' ? 260 : 220;
+    await LIB.qrGen();
     const qrUrl = await QRCode.toDataURL(it.code, { width: qrSize, margin: 1, color: { dark: '#0f172a', light: '#ffffff' } });
     return `
       <div class="label label-${kind} size-${meta.size}">
